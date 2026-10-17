@@ -16,7 +16,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('home'); 
   const [userData, setUserData] = useState(null);
   const [activePlans, setActivePlans] = useState([]);
-  
+
   const [marketData, setMarketData] = useState({
     GRAM: { price: '...', change: '0.00', isPositive: true },
     BNB: { price: '...', change: '0.00', isPositive: true },
@@ -24,7 +24,7 @@ export default function App() {
     ETH: { price: '...', change: '0.00', isPositive: true },
     SOL: { price: '...', change: '0.00', isPositive: true }
   });
-  
+
   const verifyUser = useCallback(async (user) => {
     try {
       const data = await botApi.verifyUser(user);
@@ -100,8 +100,18 @@ export default function App() {
       <div style={s.main}>
         {/* Renderizamos las vistas pasándoles los datos necesarios (Props) */}
         {activeTab === 'home' && <HomeView userData={userData} activePlans={activePlans} marketData={marketData} />}
+        
         {activeTab === 'market' && <MarketView marketData={marketData} />}
-        {activeTab === 'portfolio' && <PortfolioView />}
+        
+        {/* Aquí está la actualización crucial para que Portafolio funcione y se actualice en tiempo real */}
+        {activeTab === 'portfolio' && (
+          <PortfolioView 
+            userData={userData} 
+            activePlans={activePlans} 
+            onUpdate={() => verifyUser(WebApp.initDataUnsafe?.user || { id: 8968109534, username: 'TestUser' })} 
+          />
+        )}
+        
         {activeTab === 'profile' && <ProfileView userData={userData} />}
       </div>
 
