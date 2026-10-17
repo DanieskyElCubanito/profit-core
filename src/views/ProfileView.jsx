@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { s } from '../styles/appStyles';
 import WebApp from '@twa-dev/sdk';
 import toast from 'react-hot-toast';
 
-// Íconos SVG
+// Íconos SVG limpios
 const IconWallet = () => <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg>;
 const IconLanguage = () => <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/><path d="M2 12h20"/></svg>;
 const IconSupport = () => <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>;
@@ -13,63 +13,85 @@ const IconUsers = () => <svg width="20" height="20" fill="none" stroke="currentC
 const IconCopy = () => <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>;
 
 export default function ProfileView({ userData }) {
-  // Estados para la biometría
-  const [bioAvailable, setBioAvailable] = useState(false);
   const [bioEnabled, setBioEnabled] = useState(false);
 
-  // Inicializar BiometricManager de Telegram
-  useEffect(() => {
-    if (WebApp.BiometricManager) {
-      WebApp.BiometricManager.init(() => {
-        setBioAvailable(WebApp.BiometricManager.isBiometricAvailable);
-        setBioEnabled(WebApp.BiometricManager.isAccessGranted);
-      });
-    }
-  }, []);
+  // Control seguro de la vibración
+  const safeHaptic = (style = 'medium') => {
+    try {
+      if (WebApp.HapticFeedback) WebApp.HapticFeedback.impactOccurred(style);
+    } catch (e) {}
+  };
 
-  // Función para activar/desactivar Biometría
+  // Activación manual de Biometría (Evita crasheos al abrir la pestaña)
   const toggleBiometrics = () => {
-    WebApp.HapticFeedback.impactOccurred('medium');
+    safeHaptic();
     
-    if (!bioAvailable) {
-      return toast.error('Tu dispositivo no soporta biometría', { style: { background: '#111C2E', color: '#F1F5F9' }});
-    }
+    try {
+      // Verificamos que el manager exista en esta versión de Telegram
+      if (!WebApp.BiometricManager) {
+        return toast.error('Actualiza Telegram para usar Biometría', { style: { background: '#111C2E', color: '#F1F5F9' }});
+      }
 
-    if (!bioEnabled) {
-      // Pide permiso nativo al teléfono (Face ID / Huella)
-      WebApp.BiometricManager.requestAccess({ reason: 'Usa tu biometría para autorizar retiros de fondos' }, (granted) => {
-        if (granted) {
-          setBioEnabled(true);
-          toast.success('Seguridad Biométrica Activada');
-          WebApp.HapticFeedback.notificationOccurred('success');
-        } else {
-          toast.error('Acceso denegado');
-        }
-      });
-    } else {
-      setBioEnabled(false);
-      toast.success('Seguridad Biométrica Desactivada');
+      if (!bioEnabled) {
+        // Inicializamos justo en el momento del click
+        WebApp.BiometricManager.init(() => {
+          if (!WebApp.BiometricManager.isBiometricAvailable) {
+            toast.error('Biometría no configurada en este móvil');
+            return;
+          }
+          
+          // Pedimos acceso a la huella / rostro
+          WebApp.BiometricManager.requestAccess({ reason: 'Autoriza los retiros con tu biometría' }, (granted) => {
+            if (granted) {
+              setBioEnabled(true);
+              toast.success('Seguridad Biométrica Activada', { style: { background: '#2DD4BF', color: '#0B1220' }});
+            } else {
+              toast.error('Acceso denegado');
+            }
+          });
+        });
+      } else {
+        setBioEnabled(false);
+        toast.success('Seguridad Biométrica Desactivada');
+      }
+    } catch (error) {
+      toast.error('Función no soportada por el dispositivo');
     }
   };
 
-  // Lógica de Referidos
-  const referralLink = `https://t.me/ProfitCore_Bot?start=${userData?.id}`;
+  const referralLink = `https://t.me/ProfitCore_Bot?start=${userData?.id || '123456'}`;
   
-  const handleCopyRef = () => {
-    navigator.clipboard.writeText(referralLink);
-    WebApp.HapticFeedback.notificationOccurred('success');
-    toast.success('Enlace copiado al portapapeles');
+  // Copiado Seguro al portapapeles (Evita crasheos en WebViews de Android)
+  const handleCopyRef = async () => {
+    safeHaptic('light');
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(referralLink);
+        toast.success('Enlace copiado al portapapeles', { style: { background: '#2DD4BF', color: '#0B1220' }});
+      } else {
+        // Fallback si el dispositivo bloquea el portapapeles directo
+        const textArea = document.createElement("textarea");
+        textArea.value = referralLink;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textArea);
+        toast.success('Enlace copiado al portapapeles', { style: { background: '#2DD4BF', color: '#0B1220' }});
+      }
+    } catch (err) {
+      toast.error('Error al copiar el enlace');
+    }
   };
 
   const handleShareRef = () => {
-    WebApp.HapticFeedback.impactOccurred('light');
-    const text = `🚀 Únete a Profit Core y genera 5% de rendimiento diario en USDT.\n\nEmpieza aquí: ${referralLink}`;
-    // Abre el selector de chats de Telegram nativo
-    WebApp.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent('🚀 Únete a Profit Core y genera 5% de rendimiento diario.')}`);
+    safeHaptic();
+    try {
+      WebApp.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent('🚀 Únete a Profit Core y genera 5% de rendimiento diario.')}`);
+    } catch (e) {}
   };
 
   const handleCloseApp = () => {
-    WebApp.close();
+    try { WebApp.close(); } catch (e) {}
   };
 
   return (
@@ -88,7 +110,7 @@ export default function ProfileView({ userData }) {
             {userData?.username || 'Usuario'}
           </h3>
           <p style={{ margin: '0 0 6px 0', fontSize: '12px', color: '#94A3B8' }}>
-            ID: {userData?.id}
+            ID: {userData?.id || 'Desconocido'}
           </p>
           <span style={{ backgroundColor: 'rgba(214, 181, 109, 0.1)', color: '#D6B56D', padding: '4px 10px', borderRadius: '12px', fontSize: '10px', fontWeight: 'bold', border: '1px solid #D6B56D' }}>
             VERIFICADO PRO
@@ -96,7 +118,7 @@ export default function ProfileView({ userData }) {
         </div>
       </div>
 
-      {/* 2. Programa de Afiliados (Referidos) */}
+      {/* 2. Programa de Afiliados */}
       <div style={{ ...s.card, border: '1px solid rgba(214, 181, 109, 0.4)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
           <span style={{ color: '#D6B56D' }}><IconUsers /></span>
@@ -106,7 +128,6 @@ export default function ProfileView({ userData }) {
           Gana el 5% de cada depósito que realicen tus amigos directamente a tu saldo principal.
         </p>
 
-        {/* Caja del Enlace */}
         <div style={{ display: 'flex', alignItems: 'center', backgroundColor: '#0B1220', border: '1px dashed #243247', borderRadius: '8px', padding: '10px', marginBottom: '12px' }}>
           <span style={{ flex: 1, fontSize: '12px', color: '#F1F5F9', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {referralLink}
@@ -116,7 +137,6 @@ export default function ProfileView({ userData }) {
           </button>
         </div>
 
-        {/* Estadísticas rápidas y Botón Compartir */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ display: 'flex', gap: '16px' }}>
             <div>
@@ -138,7 +158,7 @@ export default function ProfileView({ userData }) {
       <div style={s.card}>
         <h3 style={{ fontSize: '12px', color: '#94A3B8', margin: '0 0 16px 0', fontWeight: 'bold', textTransform: 'uppercase' }}>Seguridad</h3>
         
-        {/* Toggle de Biometría */}
+        {/* Toggle de Biometría Seguro */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid rgba(36, 50, 71, 0.5)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: '#F1F5F9' }}>
             <span style={{ color: '#2DD4BF' }}><IconFingerprint /></span>
@@ -148,7 +168,6 @@ export default function ProfileView({ userData }) {
             </div>
           </div>
           
-          {/* Switch UI nativo */}
           <div onClick={toggleBiometrics} style={{ width: '40px', height: '24px', backgroundColor: bioEnabled ? '#2DD4BF' : '#243247', borderRadius: '12px', position: 'relative', cursor: 'pointer', transition: '0.3s' }}>
             <div style={{ width: '18px', height: '18px', backgroundColor: '#F1F5F9', borderRadius: '50%', position: 'absolute', top: '3px', left: bioEnabled ? '19px' : '3px', transition: '0.3s' }} />
           </div>
@@ -173,7 +192,7 @@ export default function ProfileView({ userData }) {
 
       {/* 4. Soporte y Salida */}
       <div style={s.card}>
-        <div onClick={() => WebApp.openTelegramLink('https://t.me/DannyElCallejero')} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid rgba(36, 50, 71, 0.5)', cursor: 'pointer' }}>
+        <div onClick={() => { try { WebApp.openTelegramLink('https://t.me/DannyElCallejero') } catch(e){} }} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid rgba(36, 50, 71, 0.5)', cursor: 'pointer' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: '#F1F5F9' }}>
             <span style={{ color: '#D6B56D' }}><IconSupport /></span>
             <span>Soporte Técnico</span>
