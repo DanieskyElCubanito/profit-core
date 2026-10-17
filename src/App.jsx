@@ -79,31 +79,28 @@ function App() {
     }
   }, [verifyUser]);
 
-  // --- OBTENCIÓN DE PRECIOS EN TIEMPO REAL (MEXC API) ---
+  // --- OBTENCIÓN DE PRECIOS EN TIEMPO REAL (CoinGecko API) ---
   useEffect(() => {
     const fetchPrices = async () => {
       try {
-        // Hacemos las peticiones por separado para mayor estabilidad en Chrome y evitar CORS
-        const [resTon, resBnb] = await Promise.all([
-          fetch('https://api.mexc.com/api/v3/ticker/24hr?symbol=TONUSDT'),
-          fetch('https://api.mexc.com/api/v3/ticker/24hr?symbol=BNBUSDT')
-        ]);
+        // CoinGecko permite peticiones desde el navegador sin bloqueos (CORS-friendly).
+        const res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=the-open-network,binancecoin&vs_currencies=usd&include_24hr_change=true');
+        const data = await res.json();
 
-        const dataTon = await resTon.json();
-        const dataBnb = await resBnb.json();
-
-        setMarketData({
-          GRAM: {
-            price: parseFloat(dataTon.lastPrice).toFixed(2),
-            change: Math.abs(parseFloat(dataTon.priceChangePercent)).toFixed(2),
-            isPositive: parseFloat(dataTon.priceChangePercent) >= 0
-          },
-          BNB: {
-            price: parseFloat(dataBnb.lastPrice).toFixed(2),
-            change: Math.abs(parseFloat(dataBnb.priceChangePercent)).toFixed(2),
-            isPositive: parseFloat(dataBnb.priceChangePercent) >= 0
-          }
-        });
+        if (data['the-open-network'] && data['binancecoin']) {
+          setMarketData({
+            GRAM: {
+              price: parseFloat(data['the-open-network'].usd).toFixed(2),
+              change: Math.abs(parseFloat(data['the-open-network'].usd_24h_change)).toFixed(2),
+              isPositive: parseFloat(data['the-open-network'].usd_24h_change) >= 0
+            },
+            BNB: {
+              price: parseFloat(data['binancecoin'].usd).toFixed(2),
+              change: Math.abs(parseFloat(data['binancecoin'].usd_24h_change)).toFixed(2),
+              isPositive: parseFloat(data['binancecoin'].usd_24h_change) >= 0
+            }
+          });
+        }
       } catch (err) {
         console.error("Error obteniendo precios del mercado:", err);
       }
@@ -112,8 +109,8 @@ function App() {
     // Llamamos la primera vez
     fetchPrices();
     
-    // Actualizamos los precios cada 15 segundos
-    const interval = setInterval(fetchPrices, 15000);
+    // Actualizamos los precios cada 20 segundos para no saturar la API
+    const interval = setInterval(fetchPrices, 20000);
     return () => clearInterval(interval);
   }, []);
 
