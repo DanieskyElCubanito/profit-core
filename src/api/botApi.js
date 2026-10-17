@@ -57,5 +57,20 @@ export const botApi = {
       console.error("Error en botApi.requestWithdraw:", error);
       throw error;
     }
+  },
+  // Nueva función para pedirle al backend de Vercel que genere la billetera
+  generateDepositWallet: async (userId, network) => {
+    try {
+      const response = await fetch('/api/generateWallet', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, network })
+      });
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error("Error contactando al servidor:", error);
+      return { success: false };
+    }
   }
 };
