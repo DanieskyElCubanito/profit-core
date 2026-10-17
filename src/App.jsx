@@ -4,9 +4,41 @@ import { s } from './styles/appStyles';
 import { botApi } from './api/botApi';
 import toast, { Toaster } from 'react-hot-toast';
 
+// --- ÍCONOS VECTORIALES PREMIUM (Estilo 2026) ---
+const IconHome = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+    <polyline points="9 22 9 12 15 12 15 22"/>
+  </svg>
+);
+
+const IconMarket = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="18" y1="20" x2="18" y2="10"/>
+    <line x1="12" y1="20" x2="12" y2="4"/>
+    <line x1="6" y1="20" x2="6" y2="14"/>
+  </svg>
+);
+
+const IconPortfolio = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/>
+    <path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/>
+    <path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/>
+  </svg>
+);
+
+const IconProfile = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/>
+    <circle cx="12" cy="7" r="4"/>
+  </svg>
+);
+// -------------------------------------------------
+
 function App() {
   const [status, setStatus] = useState('loading'); 
-  const [activeTab, setActiveTab] = useState('home'); // home, market, portfolio, profile
+  const [activeTab, setActiveTab] = useState('home'); 
   const [userData, setUserData] = useState(null);
   const [activePlans, setActivePlans] = useState([]);
   
@@ -55,7 +87,6 @@ function App() {
         {/* --- PESTAÑA: INICIO --- */}
         {activeTab === 'home' && (
           <div className="fade-in">
-            
             {/* 1. Resumen del portafolio */}
             <div style={s.card}>
               <div style={s.cardHeader}>
@@ -65,7 +96,6 @@ function App() {
               <h1 style={s.h1}>${Number(userData?.balance || 0).toFixed(2)} <span style={{fontSize:'18px', color:'#94A3B8'}}>USDT</span></h1>
               <p style={s.textGain}>+5.00% (Hoy)</p>
               
-              {/* Filtros de Gráfico Sencillos */}
               <div style={{ display: 'flex', gap: '10px', marginTop: '16px', borderTop: '1px solid #243247', paddingTop: '16px' }}>
                 <span style={{...s.textMuted, color: '#2DD4BF', fontWeight: 'bold'}}>1D</span>
                 <span style={s.textMuted}>1S</span>
@@ -125,7 +155,7 @@ function App() {
           </div>
         )}
 
-        {/* --- OTRAS PESTAÑAS (MERCADO, PORTAFOLIO, PERFIL) --- */}
+        {/* --- OTRAS PESTAÑAS --- */}
         {activeTab === 'market' && (
           <div style={s.center}><h3 style={s.h3}>Mercado en vivo</h3><p style={s.textMuted}>Próximamente...</p></div>
         )}
@@ -141,22 +171,22 @@ function App() {
         )}
       </div>
 
-      {/* --- NAVEGACIÓN INFERIOR --- */}
+      {/* --- NAVEGACIÓN INFERIOR (Con SVGs) --- */}
       <div style={s.bottomNav}>
         <div onClick={() => setActiveTab('home')} style={activeTab === 'home' ? s.navItemActive : s.navItem}>
-          <span style={{ fontSize: '20px' }}>🏠</span>
+          <IconHome />
           Inicio
         </div>
         <div onClick={() => setActiveTab('market')} style={activeTab === 'market' ? s.navItemActive : s.navItem}>
-          <span style={{ fontSize: '20px' }}>📈</span>
+          <IconMarket />
           Mercado
         </div>
         <div onClick={() => setActiveTab('portfolio')} style={activeTab === 'portfolio' ? s.navItemActive : s.navItem}>
-          <span style={{ fontSize: '20px' }}>💼</span>
+          <IconPortfolio />
           Portafolio
         </div>
         <div onClick={() => setActiveTab('profile')} style={activeTab === 'profile' ? s.navItemActive : s.navItem}>
-          <span style={{ fontSize: '20px' }}>👤</span>
+          <IconProfile />
           Perfil
         </div>
       </div>
