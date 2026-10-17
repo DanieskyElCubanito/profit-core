@@ -4,7 +4,7 @@ import { s } from './styles/appStyles';
 import { botApi } from './api/botApi';
 import toast, { Toaster } from 'react-hot-toast';
 
-// --- ÍCONOS VECTORIALES PREMIUM ---
+// --- ÍCONOS VECTORIALES PREMIUM (Estilo 2026) ---
 const IconHome = () => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
@@ -34,6 +34,7 @@ const IconProfile = () => (
     <circle cx="12" cy="7" r="4"/>
   </svg>
 );
+// -------------------------------------------------
 
 function App() {
   const [status, setStatus] = useState('loading'); 
@@ -41,12 +42,13 @@ function App() {
   const [userData, setUserData] = useState(null);
   const [activePlans, setActivePlans] = useState([]);
   
-  // Estado para los precios en tiempo real
+  // Estado para los precios en tiempo real (inicia con valores por defecto)
   const [marketData, setMarketData] = useState({
     GRAM: { price: '...', change: '0.00', isPositive: true },
     BNB: { price: '...', change: '0.00', isPositive: true }
   });
   
+  // --- VERIFICACIÓN DE USUARIO EN BACKEND ---
   const verifyUser = useCallback(async (user) => {
     try {
       const data = await botApi.verifyUser(user);
@@ -65,7 +67,7 @@ function App() {
     }
   }, []);
 
-  // Efecto para inicializar Telegram
+  // --- INICIALIZACIÓN DE TELEGRAM SDK ---
   useEffect(() => {
     try {
       WebApp.ready();
@@ -77,31 +79,31 @@ function App() {
     }
   }, [verifyUser]);
 
-  // Efecto para obtener precios de Binance API (Gratis y sin keys)
+  // --- OBTENCIÓN DE PRECIOS EN TIEMPO REAL (MEXC API) ---
   useEffect(() => {
     const fetchPrices = async () => {
       try {
-        // Obtenemos los datos de 24h para TONUSDT y BNBUSDT
-        const res = await fetch('https://api.binance.com/api/v3/ticker/24hr?symbols=%5B%22TONUSDT%22,%22BNBUSDT%22%5D');
-        const data = await res.json();
-        
-        if (Array.isArray(data)) {
-          const newMarketData = { ...marketData };
-          
-          data.forEach(item => {
-            const isTon = item.symbol === 'TONUSDT';
-            const name = isTon ? 'GRAM' : 'BNB'; // Transformamos TON a GRAM para la UI
-            const changePercent = parseFloat(item.priceChangePercent);
-            
-            newMarketData[name] = {
-              price: parseFloat(item.lastPrice).toFixed(2),
-              change: Math.abs(changePercent).toFixed(2),
-              isPositive: changePercent >= 0
-            };
-          });
-          
-          setMarketData(newMarketData);
-        }
+        // Hacemos las peticiones por separado para mayor estabilidad en Chrome y evitar CORS
+        const [resTon, resBnb] = await Promise.all([
+          fetch('https://api.mexc.com/api/v3/ticker/24hr?symbol=TONUSDT'),
+          fetch('https://api.mexc.com/api/v3/ticker/24hr?symbol=BNBUSDT')
+        ]);
+
+        const dataTon = await resTon.json();
+        const dataBnb = await resBnb.json();
+
+        setMarketData({
+          GRAM: {
+            price: parseFloat(dataTon.lastPrice).toFixed(2),
+            change: Math.abs(parseFloat(dataTon.priceChangePercent)).toFixed(2),
+            isPositive: parseFloat(dataTon.priceChangePercent) >= 0
+          },
+          BNB: {
+            price: parseFloat(dataBnb.lastPrice).toFixed(2),
+            change: Math.abs(parseFloat(dataBnb.priceChangePercent)).toFixed(2),
+            isPositive: parseFloat(dataBnb.priceChangePercent) >= 0
+          }
+        });
       } catch (err) {
         console.error("Error obteniendo precios del mercado:", err);
       }
@@ -113,8 +115,9 @@ function App() {
     // Actualizamos los precios cada 15 segundos
     const interval = setInterval(fetchPrices, 15000);
     return () => clearInterval(interval);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
+  // --- RENDERIZADO DE PANTALLA DE CARGA ---
   if (status === 'loading') {
     return (
       <div style={s.center}>
@@ -235,7 +238,7 @@ function App() {
         )}
       </div>
 
-      {/* --- NAVEGACIÓN INFERIOR --- */}
+      {/* --- NAVEGACIÓN INFERIOR (Con SVGs reactivos al color) --- */}
       <div style={s.bottomNav}>
         <div onClick={() => setActiveTab('home')} style={activeTab === 'home' ? s.navItemActive : s.navItem}>
           <IconHome />
