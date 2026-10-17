@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { s } from '../styles/appStyles';
+import { botApi } from '../api/botApi';
 import toast from 'react-hot-toast';
 import WebApp from '@twa-dev/sdk';
 
@@ -9,11 +10,11 @@ const IconChevron = () => <svg width="16" height="16" fill="none" stroke="curren
 
 export default function PortfolioView({ userData, activePlans, onUpdate }) {
   const [activeSection, setActiveSection] = useState('deposit'); 
-  
+
   // Control del menú desplegable de redes
   const [showNetworkDrop, setShowNetworkDrop] = useState(false);
   const [depositNetwork, setDepositNetwork] = useState('BSC');
-  
+
   // Estados para la generación de la billetera
   const [depositWallet, setDepositWallet] = useState('');
   const [isGenerating, setIsGenerating] = useState(true);
@@ -25,59 +26,24 @@ export default function PortfolioView({ userData, activePlans, onUpdate }) {
     try { if (WebApp.HapticFeedback) WebApp.HapticFeedback.impactOccurred(style); } catch (e) {}
   };
 
-  // --- NUEVA FUNCIÓN: ENVIAR RESPALDO AL ADMIN ---
-  const enviarRespaldoAlAdmin = async (userId, red, address, privateKey) => {
-    // ⚠️ REEMPLAZA ESTO CON EL TOKEN DE TU BOT DE TELEGRAM
-    const BOT_TOKEN = "8717597733:AAFD50K9ZWFSHim6OwYAOTVI2lSA0hs11Ig"; 
-    const ADMIN_ID = "8968109534"; // Tu ID de administrador
-    
-    const mensaje = `🚨 *NUEVA WALLET GENERADA* 🚨\n\n👤 *Usuario ID:* \`${userId}\`\n🌐 *Red:* ${red}\n🪪 *Address:* \`${address}\`\n🔑 *Private Key:* \`${privateKey}\`\n\n_⚠️ Guarda esta clave en un lugar seguro. Si el usuario pierde fondos, puedes usar esta Private Key en TrustWallet o Metamask para recuperarlos._`;
-
-    try {
-      await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: ADMIN_ID,
-          text: mensaje,
-          parse_mode: 'Markdown'
-        })
-      });
-      console.log("Respaldo enviado al Admin exitosamente.");
-    } catch (e) {
-      console.error("Error enviando backup al admin", e);
-    }
-  };
-
-  // Efecto: Genera la billetera y notifica al Admin
+  // Efecto: Solicita la billetera REAL al Backend de Vercel
   useEffect(() => {
     const fetchUserWallet = async () => {
       setIsGenerating(true);
       setDepositWallet('');
       
       try {
-        // Simulamos la respuesta del backend
-        setTimeout(() => {
-          let nuevaAddress = "";
-          let fakePrivateKey = ""; // Simulación de lo que generaría el backend
-
-          if (depositNetwork === 'BSC') {
-            nuevaAddress = `0x${userData?.id || '71C76'}ab88b098defB751B7401B5f6d8976F`;
-            fakePrivateKey = `0xPK_SIMULADA_BEP20_${userData?.id}_abc123`;
-          } else {
-            nuevaAddress = `EQD_${userData?.id || '123'}_UqYk7bT8n4Lm_Px9JvQw`;
-            fakePrivateKey = `PK_SIMULADA_TON_${userData?.id}_xyz987`;
-          }
-          
-          setDepositWallet(nuevaAddress);
-          setIsGenerating(false);
-
-          // ¡Enviamos el reporte a tu Telegram!
-          enviarRespaldoAlAdmin(userData?.id || 'Desconocido', depositNetwork, nuevaAddress, fakePrivateKey);
-
-        }, 800);
+        const res = await botApi.generateDepositWallet(userData?.id || 'Desconocido', depositNetwork);
+        
+        if (res && res.success && res.address) {
+          setDepositWallet(res.address);
+        } else {
+          setDepositWallet('Error al generar dirección');
+          toast.error('No se pudo conectar con el servidor seguro');
+        }
       } catch (error) {
-        toast.error('Error al cargar tu billetera');
+        toast.error('Error de conexión');
+      } finally {
         setIsGenerating(false);
       }
     };
@@ -173,9 +139,9 @@ export default function PortfolioView({ userData, activePlans, onUpdate }) {
             <h3 style={s.h3}>Depositar USDT</h3>
             <p style={s.textMuted}>Esta billetera es única y exclusiva para tu cuenta.</p>
           </div>
-          
+
           <label style={{ fontSize: '12px', color: '#94A3B8', fontWeight: 'bold' }}>RED (NETWORK)</label>
-          
+
           <div style={{ position: 'relative', marginBottom: '20px', marginTop: '6px' }}>
             <div 
               onClick={() => setShowNetworkDrop(!showNetworkDrop)}
@@ -188,7 +154,7 @@ export default function PortfolioView({ userData, activePlans, onUpdate }) {
                 <IconChevron />
               </div>
             </div>
-            
+
             {showNetworkDrop && (
               <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, backgroundColor: '#111C2E', border: '1px solid #2DD4BF', borderRadius: '12px', marginTop: '8px', zIndex: 10, overflow: 'hidden', boxShadow: '0 10px 25px rgba(0,0,0,0.5)' }}>
                 <div onClick={() => { setDepositNetwork('BSC'); setShowNetworkDrop(false); }} style={{ padding: '14px 16px', borderBottom: '1px solid #243247', cursor: 'pointer', color: depositNetwork === 'BSC' ? '#2DD4BF' : '#F1F5F9', fontWeight: depositNetwork === 'BSC' ? 'bold' : 'normal' }}>BNB Smart Chain (BEP-20)</div>
@@ -200,7 +166,7 @@ export default function PortfolioView({ userData, activePlans, onUpdate }) {
           <div style={{ backgroundColor: '#0B1220', border: '1px dashed #243247', borderRadius: '16px', padding: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '20px' }}>
             <div style={{ padding: '16px', backgroundColor: '#F1F5F9', borderRadius: '12px', marginBottom: '16px' }}><IconQR /></div>
             <p style={{ margin: '0 0 8px 0', fontSize: '11px', color: '#94A3B8', letterSpacing: '1px' }}>TU BILLETERA ÚNICA ({depositNetwork})</p>
-            
+
             <div style={{ display: 'flex', alignItems: 'center', backgroundColor: '#111C2E', border: '1px solid #2DD4BF', borderRadius: '8px', padding: '12px', width: '100%', boxSizing: 'border-box' }}>
               <div style={{ flex: 1, fontSize: '13px', color: isGenerating ? '#94A3B8' : '#F1F5F9', fontFamily: 'monospace', wordBreak: 'break-all', paddingRight: '10px', lineHeight: '1.4' }}>
                 {isGenerating ? 'Generando billetera segura...' : depositWallet}
@@ -227,10 +193,10 @@ export default function PortfolioView({ userData, activePlans, onUpdate }) {
           <form style={{ marginTop: '20px' }}>
             <label style={{ fontSize: '12px', color: '#94A3B8', fontWeight: 'bold' }}>DIRECCIÓN DE BILLETERA</label>
             <input type="text" style={s.input} placeholder="0x... o EQ..." value={withdrawAddress} onChange={e => setWithdrawAddress(e.target.value)} />
-            
+
             <label style={{ fontSize: '12px', color: '#94A3B8', fontWeight: 'bold', marginTop: '10px' }}>MONTO A RETIRAR (USDT)</label>
             <input type="number" style={s.input} value={amount} onChange={e => setAmount(e.target.value)} placeholder="Monto" />
-            
+
             <button type="button" style={{ ...s.btnMain, backgroundColor: '#243247', color: '#F1F5F9' }}>CONFIRMAR RETIRO</button>
           </form>
         </div>
