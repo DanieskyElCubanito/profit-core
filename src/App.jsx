@@ -4,7 +4,7 @@ import { s } from './styles/appStyles';
 import { botApi } from './api/botApi';
 import toast, { Toaster } from 'react-hot-toast';
 
-// --- ÍCONOS VECTORIALES PREMIUM (Estilo 2026) ---
+// --- ÍCONOS VECTORIALES PREMIUM ---
 const IconHome = () => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
@@ -34,13 +34,18 @@ const IconProfile = () => (
     <circle cx="12" cy="7" r="4"/>
   </svg>
 );
-// -------------------------------------------------
 
 function App() {
   const [status, setStatus] = useState('loading'); 
   const [activeTab, setActiveTab] = useState('home'); 
   const [userData, setUserData] = useState(null);
   const [activePlans, setActivePlans] = useState([]);
+  
+  // Estado para los precios en tiempo real
+  const [marketData, setMarketData] = useState({
+    GRAM: { price: '...', change: '0.00', isPositive: true },
+    BNB: { price: '...', change: '0.00', isPositive: true }
+  });
   
   const verifyUser = useCallback(async (user) => {
     try {
@@ -60,6 +65,7 @@ function App() {
     }
   }, []);
 
+  // Efecto para inicializar Telegram
   useEffect(() => {
     try {
       WebApp.ready();
@@ -70,6 +76,44 @@ function App() {
       setStatus('error');
     }
   }, [verifyUser]);
+
+  // Efecto para obtener precios de Binance API (Gratis y sin keys)
+  useEffect(() => {
+    const fetchPrices = async () => {
+      try {
+        // Obtenemos los datos de 24h para TONUSDT y BNBUSDT
+        const res = await fetch('https://api.binance.com/api/v3/ticker/24hr?symbols=%5B%22TONUSDT%22,%22BNBUSDT%22%5D');
+        const data = await res.json();
+        
+        if (Array.isArray(data)) {
+          const newMarketData = { ...marketData };
+          
+          data.forEach(item => {
+            const isTon = item.symbol === 'TONUSDT';
+            const name = isTon ? 'GRAM' : 'BNB'; // Transformamos TON a GRAM para la UI
+            const changePercent = parseFloat(item.priceChangePercent);
+            
+            newMarketData[name] = {
+              price: parseFloat(item.lastPrice).toFixed(2),
+              change: Math.abs(changePercent).toFixed(2),
+              isPositive: changePercent >= 0
+            };
+          });
+          
+          setMarketData(newMarketData);
+        }
+      } catch (err) {
+        console.error("Error obteniendo precios del mercado:", err);
+      }
+    };
+
+    // Llamamos la primera vez
+    fetchPrices();
+    
+    // Actualizamos los precios cada 15 segundos
+    const interval = setInterval(fetchPrices, 15000);
+    return () => clearInterval(interval);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (status === 'loading') {
     return (
@@ -124,16 +168,36 @@ function App() {
               )}
             </div>
 
-            {/* 3. Lista de Seguimiento */}
+            {/* 3. Lista de Seguimiento (TIEMPO REAL) */}
             <div style={s.card}>
               <h3 style={s.h3}>Lista de Seguimiento</h3>
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0' }}>
-                <span style={{ color: '#F1F5F9' }}>TON / USDT</span>
-                <span style={s.textGain}>+2.4%</span>
+              
+              {/* Activo: GRAM / USDT */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid rgba(36, 50, 71, 0.5)' }}>
+                <div>
+                  <span style={{ color: '#F1F5F9', fontWeight: 'bold' }}>GRAM / USDT</span>
+                  <p style={{ margin: 0, fontSize: '12px', color: '#94A3B8' }}>The Open Network</p>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <span style={{ color: '#F1F5F9', display: 'block', fontWeight: '500' }}>${marketData.GRAM.price}</span>
+                  <span style={marketData.GRAM.isPositive ? s.textGain : s.textLoss}>
+                    {marketData.GRAM.isPositive ? '+' : '-'}{marketData.GRAM.change}%
+                  </span>
+                </div>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0' }}>
-                <span style={{ color: '#F1F5F9' }}>BNB / USDT</span>
-                <span style={s.textLoss}>-0.8%</span>
+
+              {/* Activo: BNB / USDT */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0' }}>
+                <div>
+                  <span style={{ color: '#F1F5F9', fontWeight: 'bold' }}>BNB / USDT</span>
+                  <p style={{ margin: 0, fontSize: '12px', color: '#94A3B8' }}>BNB Smart Chain</p>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <span style={{ color: '#F1F5F9', display: 'block', fontWeight: '500' }}>${marketData.BNB.price}</span>
+                  <span style={marketData.BNB.isPositive ? s.textGain : s.textLoss}>
+                    {marketData.BNB.isPositive ? '+' : '-'}{marketData.BNB.change}%
+                  </span>
+                </div>
               </div>
             </div>
 
@@ -171,7 +235,7 @@ function App() {
         )}
       </div>
 
-      {/* --- NAVEGACIÓN INFERIOR (Con SVGs) --- */}
+      {/* --- NAVEGACIÓN INFERIOR --- */}
       <div style={s.bottomNav}>
         <div onClick={() => setActiveTab('home')} style={activeTab === 'home' ? s.navItemActive : s.navItem}>
           <IconHome />
