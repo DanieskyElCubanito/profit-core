@@ -1,97 +1,203 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { s } from '../styles/appStyles';
-import WebApp from '@twa-dev/sdk';
+import { botApi } from '../api/botApi';
 import toast from 'react-hot-toast';
+import WebApp from '@twa-dev/sdk';
 
-const IconSupport = () => <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>;
-const IconClose = () => <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>;
-const IconUsers = () => <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>;
 const IconCopy = () => <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>;
+const IconQR = () => <svg width="24" height="24" fill="none" stroke="#2DD4BF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>;
+const IconChevron = () => <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>;
 
-export default function ProfileView({ userData }) {
+export default function PortfolioView({ userData, activePlans, onUpdate }) {
+  const [activeSection, setActiveSection] = useState('deposit'); 
+  
+  // Custom Dropdown y Redes
+  const [showNetworkDrop, setShowNetworkDrop] = useState(false);
+  const [depositNetwork, setDepositNetwork] = useState('BSC');
+  
+  // Estado para la billetera dinámica generada por el backend
+  const [depositWallet, setDepositWallet] = useState('');
+  const [isGeneratingWallet, setIsGeneratingWallet] = useState(false);
+
+  const [amount, setAmount] = useState('');
+  const [withdrawAddress, setWithdrawAddress] = useState('');
 
   const safeHaptic = (style = 'medium') => {
     try { if (WebApp.HapticFeedback) WebApp.HapticFeedback.impactOccurred(style); } catch (e) {}
   };
 
-  const referralLink = `https://t.me/ProfitCore_Bot?start=${userData?.id || '123456'}`;
-  
-  const handleCopyRef = async () => {
+  // Efecto que solicita la billetera única al Backend cuando cambia la red
+  useEffect(() => {
+    const fetchWallet = async () => {
+      setIsGeneratingWallet(true);
+      setDepositWallet(''); // Limpiamos la anterior
+      
+      try {
+        // AQUÍ ES DONDE CONECTARÁS CON TU BACKEND REAL (Supabase Edge Functions / Vercel)
+        // const response = await botApi.getOrCreateWallet(userData.id, depositNetwork);
+        
+        // Simulación de retraso de red (Como si estuviera creando la billetera en la blockchain)
+        setTimeout(() => {
+          if (depositNetwork === 'BSC') {
+            setDepositWallet('Cargando API Backend...'); // Aquí irá la address real BEP20
+          } else {
+            setDepositWallet('Cargando API Backend...'); // Aquí irá la address real TON
+          }
+          setIsGeneratingWallet(false);
+        }, 1500);
+
+      } catch (error) {
+        toast.error('Error al generar dirección');
+        setIsGeneratingWallet(false);
+      }
+    };
+
+    fetchWallet();
+  }, [depositNetwork, userData?.id]);
+
+  const handleCopy = (text) => {
+    if (!text || text.includes('Cargando')) return;
     safeHaptic('light');
     if (navigator?.clipboard?.writeText) {
-      await navigator.clipboard.writeText(referralLink);
-      toast.success('Enlace copiado', { style: { background: '#2DD4BF', color: '#0B1220' }});
+      navigator.clipboard.writeText(text);
+      toast.success('Dirección copiada', { style: { background: '#2DD4BF', color: '#0B1220' }});
+    } else {
+      // Fallback
+      const textArea = document.createElement("textarea");
+      textArea.value = text;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textArea);
+      toast.success('Dirección copiada', { style: { background: '#2DD4BF', color: '#0B1220' }});
     }
   };
 
-  const handleShareRef = () => {
-    safeHaptic();
-    try { WebApp.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(referralLink)}`); } catch (e) {}
-  };
-
-  const handleTicket = () => {
-    safeHaptic();
-    // Simula la apertura de un modal o envío de ticket interno
-    toast.success('Solicitud enviada. Un agente responderá pronto.');
-  };
-
-  const handleCloseApp = () => {
-    try { WebApp.close(); } catch (e) {}
+  const handleClaim = (planId, pendingYield) => {
+    safeHaptic('heavy');
+    const toastId = toast.loading('Reclamando rendimientos...');
+    setTimeout(() => {
+      toast.success(`+${pendingYield} USDT añadidos.`, { id: toastId });
+      if (onUpdate) onUpdate();
+    }, 1500);
   };
 
   return (
     <div className="fade-in">
-      <h2 style={{ ...s.h1, marginBottom: '16px' }}>Mi Perfil</h2>
+      <h2 style={{ ...s.h1, marginBottom: '16px' }}>Portafolio</h2>
 
-      <div style={{ ...s.card, display: 'flex', alignItems: 'center', gap: '16px', border: '1px solid #2DD4BF' }}>
-        <img src={userData?.photo_url || 'https://via.placeholder.com/100'} style={{ width: '64px', height: '64px', borderRadius: '50%', border: '2px solid #2DD4BF', objectFit: 'cover' }} alt="Avatar" />
+      <div style={{ ...s.card, background: 'linear-gradient(135deg, #111C2E 0%, #0B1220 100%)', border: '1px solid #2DD4BF', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h3 style={{ margin: '0 0 4px 0', color: '#F1F5F9', fontSize: '18px' }}>{userData?.username || 'Usuario'}</h3>
-          <p style={{ margin: '0 0 6px 0', fontSize: '12px', color: '#94A3B8' }}>ID: {userData?.id}</p>
-          <span style={{ backgroundColor: 'rgba(214, 181, 109, 0.1)', color: '#D6B56D', padding: '4px 10px', borderRadius: '12px', fontSize: '10px', fontWeight: 'bold', border: '1px solid #D6B56D' }}>VERIFICADO PRO</span>
+          <p style={{ ...s.textMuted, color: '#2DD4BF', fontWeight: 'bold', margin: '0 0 8px 0', fontSize: '11px' }}>BALANCE PRINCIPAL</p>
+          <h2 style={{ fontSize: '28px', margin: 0, color: '#F1F5F9' }}>
+            ${Number(userData?.balance || 0).toFixed(4)} <span style={{ fontSize: '14px', color: '#94A3B8' }}>USDT</span>
+          </h2>
         </div>
       </div>
 
-      <div style={{ ...s.card, border: '1px solid rgba(214, 181, 109, 0.4)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-          <span style={{ color: '#D6B56D' }}><IconUsers /></span>
-          <h3 style={{ ...s.h3, margin: 0, color: '#D6B56D' }}>Invita y Gana 5%</h3>
-        </div>
-        <p style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '16px' }}>Gana el 5% de cada depósito que realicen tus amigos.</p>
-
-        {/* Caja de Copiado Arreglada (Evita el desbordamiento visual) */}
-        <div style={{ display: 'flex', alignItems: 'center', backgroundColor: '#0B1220', border: '1px dashed #243247', borderRadius: '8px', padding: '10px', marginBottom: '12px', boxSizing: 'border-box' }}>
-          <div style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '12px', color: '#F1F5F9' }}>
-            {referralLink}
-          </div>
-          <button onClick={handleCopyRef} style={{ background: 'none', border: 'none', color: '#2DD4BF', cursor: 'pointer', padding: '0 4px' }}>
-            <IconCopy />
-          </button>
-        </div>
-
-        <button onClick={handleShareRef} style={{ width: '100%', backgroundColor: '#2DD4BF', color: '#0B1220', border: 'none', borderRadius: '20px', padding: '10px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>
-          Compartir ↗
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', backgroundColor: '#111C2E', padding: '6px', borderRadius: '14px' }}>
+        <button onClick={() => setActiveSection('plans')} style={{ flex: 1, padding: '10px', borderRadius: '10px', border: 'none', fontWeight: 'bold', transition: '0.2s', backgroundColor: activeSection === 'plans' ? '#243247' : 'transparent', color: activeSection === 'plans' ? '#F1F5F9' : '#94A3B8' }}>
+          Activos
+        </button>
+        <button onClick={() => setActiveSection('deposit')} style={{ flex: 1, padding: '10px', borderRadius: '10px', border: 'none', fontWeight: 'bold', transition: '0.2s', backgroundColor: activeSection === 'deposit' ? '#2DD4BF' : 'transparent', color: activeSection === 'deposit' ? '#0B1220' : '#94A3B8' }}>
+          Depositar
+        </button>
+        <button onClick={() => setActiveSection('withdraw')} style={{ flex: 1, padding: '10px', borderRadius: '10px', border: 'none', fontWeight: 'bold', transition: '0.2s', backgroundColor: activeSection === 'withdraw' ? '#243247' : 'transparent', color: activeSection === 'withdraw' ? '#F1F5F9' : '#94A3B8' }}>
+          Retirar
         </button>
       </div>
 
-      {/* Soporte Tickets */}
-      <div style={s.card}>
-        <div onClick={handleTicket} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid rgba(36, 50, 71, 0.5)', cursor: 'pointer' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: '#F1F5F9' }}>
-            <span style={{ color: '#D6B56D' }}><IconSupport /></span>
-            <span>Crear Ticket de Soporte</span>
-          </div>
-          <span style={{ color: '#94A3B8' }}>+</span>
+      {activeSection === 'plans' && (
+        <div className="fade-in">
+          {activePlans.length === 0 ? (
+             <div style={{ textAlign: 'center', padding: '30px 0' }}><p style={s.textMuted}>No tienes fondos trabajando en el pool.</p></div>
+          ) : (
+            activePlans.map((plan) => {
+              const pendingYield = (plan.daily_return_usdt * 1.5).toFixed(2);
+              return (
+                <div key={plan.id} style={{ ...s.card, position: 'relative', overflow: 'hidden' }}>
+                  <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: '4px', backgroundColor: '#2DD4BF' }}></div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
+                    <span style={{ fontWeight: 'bold', color: '#F1F5F9' }}>Plan Yield 5%</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
+                    <div>
+                      <p style={{ fontSize: '11px', color: '#94A3B8', margin: '0 0 4px 0' }}>CAPITAL</p>
+                      <p style={{ margin: 0, fontWeight: 'bold', color: '#F1F5F9', fontSize: '18px' }}>${plan.capital_usdt}</p>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <p style={{ fontSize: '11px', color: '#94A3B8', margin: '0 0 4px 0' }}>POR RECLAMAR</p>
+                      <p style={{ margin: 0, fontWeight: 'bold', color: '#22C55E', fontSize: '18px' }}>${pendingYield}</p>
+                    </div>
+                  </div>
+                  <button onClick={() => handleClaim(plan.id, pendingYield)} style={s.btnMain}>RECLAMAR</button>
+                </div>
+              );
+            })
+          )}
         </div>
+      )}
 
-        <div onClick={handleCloseApp} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', cursor: 'pointer' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: '#F87171' }}>
-            <span><IconClose /></span>
-            <span style={{ fontWeight: 'bold' }}>Cerrar Aplicación</span>
+      {activeSection === 'deposit' && (
+        <div className="fade-in" style={s.card}>
+          <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+            <h3 style={s.h3}>Generar Depósito</h3>
+            <p style={s.textMuted}>Cada depósito creará un canal seguro único hacia el pool de liquidez.</p>
+          </div>
+          
+          <label style={{ fontSize: '12px', color: '#94A3B8', fontWeight: 'bold' }}>RED (NETWORK)</label>
+          
+          <div style={{ position: 'relative', marginBottom: '20px', marginTop: '6px' }}>
+            <div 
+              onClick={() => setShowNetworkDrop(!showNetworkDrop)}
+              style={{ backgroundColor: '#0B1220', border: '1px solid #243247', borderRadius: '12px', padding: '14px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', color: '#F1F5F9' }}
+            >
+              {depositNetwork === 'BSC' ? 'BNB Smart Chain (BEP-20)' : 'The Open Network (TON)'}
+              <IconChevron />
+            </div>
+            
+            {showNetworkDrop && (
+              <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, backgroundColor: '#111C2E', border: '1px solid #2DD4BF', borderRadius: '12px', marginTop: '8px', zIndex: 10, overflow: 'hidden' }}>
+                <div onClick={() => { setDepositNetwork('BSC'); setShowNetworkDrop(false); }} style={{ padding: '14px 16px', borderBottom: '1px solid #243247', cursor: 'pointer', color: '#F1F5F9' }}>BNB Smart Chain (BEP-20)</div>
+                <div onClick={() => { setDepositNetwork('TON'); setShowNetworkDrop(false); }} style={{ padding: '14px 16px', cursor: 'pointer', color: '#F1F5F9' }}>The Open Network (TON)</div>
+              </div>
+            )}
+          </div>
+
+          <div style={{ backgroundColor: '#0B1220', border: '1px dashed #243247', borderRadius: '16px', padding: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '20px' }}>
+            <div style={{ padding: '16px', backgroundColor: '#F1F5F9', borderRadius: '12px', marginBottom: '16px' }}><IconQR /></div>
+            <p style={{ margin: '0 0 8px 0', fontSize: '11px', color: '#94A3B8', letterSpacing: '1px' }}>TU BILLETERA ÚNICA ({depositNetwork})</p>
+            
+            <div style={{ display: 'flex', alignItems: 'center', backgroundColor: '#111C2E', border: '1px solid #2DD4BF', borderRadius: '8px', padding: '10px', width: '100%', boxSizing: 'border-box' }}>
+              <div style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '13px', color: isGeneratingWallet ? '#94A3B8' : '#F1F5F9', fontFamily: 'monospace', paddingRight: '10px' }}>
+                {isGeneratingWallet ? 'Solicitando a la red...' : depositWallet}
+              </div>
+              <button 
+                onClick={() => handleCopy(depositWallet)} 
+                disabled={isGeneratingWallet}
+                style={{ background: 'none', border: 'none', color: isGeneratingWallet ? '#243247' : '#2DD4BF', cursor: isGeneratingWallet ? 'not-allowed' : 'pointer', padding: '4px' }}
+              >
+                <IconCopy />
+              </button>
+            </div>
           </div>
         </div>
-      </div>
-      
+      )}
+
+      {activeSection === 'withdraw' && (
+        <div className="fade-in" style={s.card}>
+          <h3 style={s.h3}>Solicitar Retiro</h3>
+          <form style={{ marginTop: '20px' }}>
+            <label style={{ fontSize: '12px', color: '#94A3B8', fontWeight: 'bold' }}>DIRECCIÓN DE BILLETERA</label>
+            <input type="text" style={s.input} placeholder="0x... o EQ..." value={withdrawAddress} onChange={e => setWithdrawAddress(e.target.value)} />
+            
+            <label style={{ fontSize: '12px', color: '#94A3B8', fontWeight: 'bold', marginTop: '10px' }}>MONTO A RETIRAR (USDT)</label>
+            <input type="number" style={s.input} value={amount} onChange={e => setAmount(e.target.value)} placeholder="Monto" />
+            
+            <button type="button" style={{ ...s.btnMain, backgroundColor: '#243247', color: '#F1F5F9' }}>CONFIRMAR RETIRO</button>
+          </form>
+        </div>
+      )}
     </div>
   );
 }
