@@ -42,10 +42,13 @@ function App() {
   const [userData, setUserData] = useState(null);
   const [activePlans, setActivePlans] = useState([]);
   
-  // Estado para los precios en tiempo real (inicia con valores por defecto)
+  // Estado ampliado para el Mercado completo
   const [marketData, setMarketData] = useState({
     GRAM: { price: '...', change: '0.00', isPositive: true },
-    BNB: { price: '...', change: '0.00', isPositive: true }
+    BNB: { price: '...', change: '0.00', isPositive: true },
+    BTC: { price: '...', change: '0.00', isPositive: true },
+    ETH: { price: '...', change: '0.00', isPositive: true },
+    SOL: { price: '...', change: '0.00', isPositive: true }
   });
   
   // --- VERIFICACIÓN DE USUARIO EN BACKEND ---
@@ -83,34 +86,31 @@ function App() {
   useEffect(() => {
     const fetchPrices = async () => {
       try {
-        // CoinGecko permite peticiones desde el navegador sin bloqueos (CORS-friendly).
-        const res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=the-open-network,binancecoin&vs_currencies=usd&include_24hr_change=true');
+        const res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=the-open-network,binancecoin,bitcoin,ethereum,solana&vs_currencies=usd&include_24hr_change=true');
         const data = await res.json();
 
-        if (data['the-open-network'] && data['binancecoin']) {
+        if (data) {
+          const formatData = (coinData) => ({
+            price: parseFloat(coinData?.usd || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+            change: Math.abs(parseFloat(coinData?.usd_24h_change || 0)).toFixed(2),
+            isPositive: parseFloat(coinData?.usd_24h_change || 0) >= 0
+          });
+
           setMarketData({
-            GRAM: {
-              price: parseFloat(data['the-open-network'].usd).toFixed(2),
-              change: Math.abs(parseFloat(data['the-open-network'].usd_24h_change)).toFixed(2),
-              isPositive: parseFloat(data['the-open-network'].usd_24h_change) >= 0
-            },
-            BNB: {
-              price: parseFloat(data['binancecoin'].usd).toFixed(2),
-              change: Math.abs(parseFloat(data['binancecoin'].usd_24h_change)).toFixed(2),
-              isPositive: parseFloat(data['binancecoin'].usd_24h_change) >= 0
-            }
+            GRAM: formatData(data['the-open-network']),
+            BNB: formatData(data['binancecoin']),
+            BTC: formatData(data['bitcoin']),
+            ETH: formatData(data['ethereum']),
+            SOL: formatData(data['solana'])
           });
         }
       } catch (err) {
-        console.error("Error obteniendo precios del mercado:", err);
+        console.error("Error obteniendo precios de CoinGecko:", err);
       }
     };
 
-    // Llamamos la primera vez
     fetchPrices();
-    
-    // Actualizamos los precios cada 20 segundos para no saturar la API
-    const interval = setInterval(fetchPrices, 20000);
+    const interval = setInterval(fetchPrices, 20000); // Refresco cada 20 segundos
     return () => clearInterval(interval);
   }, []);
 
@@ -215,17 +215,72 @@ function App() {
               </div>
               <p style={s.textMuted}>Aprende a gestionar tu riesgo y maximizar tus rendimientos con nuestras guías.</p>
             </div>
-
           </div>
         )}
 
-        {/* --- OTRAS PESTAÑAS --- */}
+        {/* --- PESTAÑA: MERCADO --- */}
         {activeTab === 'market' && (
-          <div style={s.center}><h3 style={s.h3}>Mercado en vivo</h3><p style={s.textMuted}>Próximamente...</p></div>
+          <div className="fade-in">
+            <h2 style={{ ...s.h1, marginBottom: '16px' }}>Mercado</h2>
+            
+            {/* Buscador minimalista */}
+            <div style={{ position: 'relative', marginBottom: '16px' }}>
+              <span style={{ position: 'absolute', left: '14px', top: '14px', color: '#94A3B8' }}>
+                <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+              </span>
+              <input type="text" placeholder="Buscar criptomoneda..." style={{ ...s.input, paddingLeft: '40px', marginBottom: '0' }} />
+            </div>
+
+            {/* Filtros tipo "Pills" */}
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', overflowX: 'auto', paddingBottom: '4px' }}>
+              <span style={{ padding: '6px 14px', backgroundColor: '#2DD4BF', color: '#0B1220', borderRadius: '20px', fontSize: '12px', fontWeight: 'bold', whiteSpace: 'nowrap' }}>Todos</span>
+              <span style={{ padding: '6px 14px', backgroundColor: '#111C2E', color: '#94A3B8', borderRadius: '20px', fontSize: '12px', border: '1px solid #243247', whiteSpace: 'nowrap' }}>Ganadores 🚀</span>
+              <span style={{ padding: '6px 14px', backgroundColor: '#111C2E', color: '#94A3B8', borderRadius: '20px', fontSize: '12px', border: '1px solid #243247', whiteSpace: 'nowrap' }}>Layer 1</span>
+            </div>
+
+            {/* Lista Completa del Mercado */}
+            <div style={s.card}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
+                <span style={{ fontSize: '12px', color: '#94A3B8' }}>Activo</span>
+                <span style={{ fontSize: '12px', color: '#94A3B8' }}>Precio / 24h</span>
+              </div>
+
+              {/* Mapeo de la lista de activos */}
+              {[
+                { symbol: 'BTC', name: 'Bitcoin', data: marketData.BTC },
+                { symbol: 'ETH', name: 'Ethereum', data: marketData.ETH },
+                { symbol: 'SOL', name: 'Solana', data: marketData.SOL },
+                { symbol: 'GRAM', name: 'The Open Network', data: marketData.GRAM },
+                { symbol: 'BNB', name: 'BNB Smart Chain', data: marketData.BNB }
+              ].map((coin, index) => (
+                <div key={coin.symbol} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: index !== 4 ? '1px solid rgba(36, 50, 71, 0.5)' : 'none' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: '#243247', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#F1F5F9', fontSize: '10px', fontWeight: 'bold' }}>
+                      {coin.symbol}
+                    </div>
+                    <div>
+                      <span style={{ color: '#F1F5F9', fontWeight: 'bold', display: 'block' }}>{coin.symbol}</span>
+                      <span style={{ fontSize: '12px', color: '#94A3B8' }}>{coin.name}</span>
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <span style={{ color: '#F1F5F9', display: 'block', fontWeight: '500' }}>${coin.data.price}</span>
+                    <span style={coin.data.isPositive ? s.textGain : s.textLoss}>
+                      {coin.data.isPositive ? '+' : '-'}{coin.data.change}%
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         )}
+
+        {/* --- PESTAÑA: PORTAFOLIO --- */}
         {activeTab === 'portfolio' && (
           <div style={s.center}><h3 style={s.h3}>Gestión de Portafolio</h3><p style={s.textMuted}>Aquí irán las reinversiones y retiros.</p></div>
         )}
+
+        {/* --- PESTAÑA: PERFIL --- */}
         {activeTab === 'profile' && (
           <div style={s.center}>
             <img src={userData?.photo_url} style={{ width: '80px', borderRadius: '50%', border: '2px solid #2DD4BF', marginBottom: '16px' }} alt="Avatar" />
