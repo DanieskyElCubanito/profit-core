@@ -9,7 +9,101 @@ const IconQR = () => <svg width="24" height="24" fill="none" stroke="#2DD4BF" st
 const IconChevron = () => <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>;
 const IconBack = () => <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>;
 
+// --- DICCIONARIO DE IDIOMAS AUTOMÁTICO ---
+const translations = {
+  es: {
+    portfolio: "Portafolio",
+    balance: "BALANCE DISPONIBLE",
+    assets: "Activos",
+    invest: "Invertir",
+    withdraw: "Retirar",
+    noFunds: "No tienes fondos trabajando en el pool.",
+    capital: "CAPITAL",
+    toClaim: "POR RECLAMAR",
+    claimBtn: "RECLAMAR",
+    calcTitle: "Calculadora de Inversión",
+    calcDesc: "Gana un 5% de rendimiento diario automático.",
+    network: "RED DE PAGO",
+    amountInvest: "MONTO A INVERTIR (USDT)",
+    h24: "24 HORAS",
+    d7: "7 DÍAS",
+    d30: "30 DÍAS",
+    generateOrder: "GENERAR ORDEN DE INVERSIÓN",
+    makePayment: "Realizar Pago",
+    sending: "Enviando inversión de:",
+    sendOnly: "ENVÍA SOLO USDT",
+    toAddress: "A ESTA DIRECCIÓN",
+    generating: "Generando canal de pago seguro...",
+    alreadyPaid: "YA REALICÉ EL DEPÓSITO",
+    withdrawTitle: "Solicitar Retiro",
+    withdrawDesc: "Los retiros se envían automáticamente a tu billetera.",
+    withdrawNetwork: "RED DE RETIRO",
+    walletAddress: "DIRECCIÓN DE BILLETERA",
+    amountUsdt: "MONTO (USDT)",
+    max: "MÁX:",
+    processing: "PROCESANDO RETIRO...",
+    confirmWithdraw: "CONFIRMAR RETIRO",
+    msgMinInvest: "El mínimo de inversión es 5 USDT",
+    msgCopied: "Copiado al portapapeles",
+    msgClaiming: "Reclamando rendimientos...",
+    msgAdded: "USDT añadidos.",
+    msgInvalidWallet: "Ingresa una dirección de billetera válida",
+    msgInvalidAmount: "Ingresa un monto válido",
+    msgNoFunds: "Fondos insuficientes",
+    msgProcessing: "Procesando pago en la blockchain...",
+    msgSuccess: "¡Retiro enviado con éxito!",
+    msgError: "Error al procesar la solicitud"
+  },
+  en: {
+    portfolio: "Portfolio",
+    balance: "AVAILABLE BALANCE",
+    assets: "Assets",
+    invest: "Invest",
+    withdraw: "Withdraw",
+    noFunds: "You have no funds working in the pool.",
+    capital: "CAPITAL",
+    toClaim: "UNCLAIMED",
+    claimBtn: "CLAIM",
+    calcTitle: "Investment Calculator",
+    calcDesc: "Earn a 5% automatic daily yield.",
+    network: "PAYMENT NETWORK",
+    amountInvest: "AMOUNT TO INVEST (USDT)",
+    h24: "24 HOURS",
+    d7: "7 DAYS",
+    d30: "30 DAYS",
+    generateOrder: "GENERATE INVESTMENT ORDER",
+    makePayment: "Make Payment",
+    sending: "Sending investment of:",
+    sendOnly: "SEND ONLY USDT",
+    toAddress: "TO THIS ADDRESS",
+    generating: "Generating secure payment channel...",
+    alreadyPaid: "I HAVE MADE THE DEPOSIT",
+    withdrawTitle: "Request Withdrawal",
+    withdrawDesc: "Withdrawals are sent automatically to your wallet.",
+    withdrawNetwork: "WITHDRAWAL NETWORK",
+    walletAddress: "WALLET ADDRESS",
+    amountUsdt: "AMOUNT (USDT)",
+    max: "MAX:",
+    processing: "PROCESSING WITHDRAWAL...",
+    confirmWithdraw: "CONFIRM WITHDRAWAL",
+    msgMinInvest: "Minimum investment is 5 USDT",
+    msgCopied: "Copied to clipboard",
+    msgClaiming: "Claiming yields...",
+    msgAdded: "USDT added.",
+    msgInvalidWallet: "Enter a valid wallet address",
+    msgInvalidAmount: "Enter a valid amount",
+    msgNoFunds: "Insufficient funds",
+    msgProcessing: "Processing payment on blockchain...",
+    msgSuccess: "Withdrawal sent successfully!",
+    msgError: "Error processing request"
+  }
+};
+
 export default function PortfolioView({ userData, activePlans, onUpdate }) {
+  // Detectar idioma de Telegram (Si no es 'en', usamos 'es' por defecto)
+  const userLang = WebApp.initDataUnsafe?.user?.language_code === 'en' ? 'en' : 'es';
+  const t = translations[userLang]; // Función rápida para sacar los textos
+
   const [activeSection, setActiveSection] = useState('deposit'); 
 
   // --- ESTADOS DE DEPÓSITO ---
@@ -41,7 +135,7 @@ export default function PortfolioView({ userData, activePlans, onUpdate }) {
   const handleGenerateInvestment = async () => {
     if (!investmentAmount || amountNum < 5) {
       safeHaptic('error');
-      return toast.error('El mínimo de inversión es 5 USDT', { style: { background: '#111C2E', color: '#F87171' }});
+      return toast.error(t.msgMinInvest, { style: { background: '#111C2E', color: '#F87171' }});
     }
 
     safeHaptic('heavy');
@@ -55,11 +149,11 @@ export default function PortfolioView({ userData, activePlans, onUpdate }) {
       if (res && res.success && res.address) {
         setDepositWallet(res.address);
       } else {
-        setDepositWallet('Error al generar dirección');
-        toast.error('No se pudo conectar con el servidor seguro');
+        setDepositWallet('Error');
+        toast.error(t.msgError);
       }
     } catch (error) {
-      toast.error('Error de conexión');
+      toast.error(t.msgError);
     } finally {
       setIsGenerating(false);
     }
@@ -76,7 +170,7 @@ export default function PortfolioView({ userData, activePlans, onUpdate }) {
     safeHaptic('light');
     if (navigator?.clipboard?.writeText) {
       navigator.clipboard.writeText(text);
-      toast.success('Copiado al portapapeles', { style: { background: '#2DD4BF', color: '#0B1220' }});
+      toast.success(t.msgCopied, { style: { background: '#2DD4BF', color: '#0B1220' }});
     } else {
       const textArea = document.createElement("textarea");
       textArea.value = text;
@@ -84,60 +178,57 @@ export default function PortfolioView({ userData, activePlans, onUpdate }) {
       textArea.select();
       document.execCommand("copy");
       document.body.removeChild(textArea);
-      toast.success('Copiado al portapapeles', { style: { background: '#2DD4BF', color: '#0B1220' }});
+      toast.success(t.msgCopied, { style: { background: '#2DD4BF', color: '#0B1220' }});
     }
   };
 
   const handleClaim = (planId, pendingYield) => {
     safeHaptic('heavy');
-    const toastId = toast.loading('Reclamando rendimientos...');
+    const toastId = toast.loading(t.msgClaiming);
     setTimeout(() => {
-      toast.success(`+${pendingYield} USDT añadidos.`, { id: toastId });
+      toast.success(`+${pendingYield} ${t.msgAdded}`, { id: toastId });
       if (onUpdate) onUpdate();
     }, 1500);
   };
 
-  // --- FUNCIONES DE RETIRO (AUTOMÁTICO REAL) ---
+  // --- FUNCIONES DE RETIRO ---
   const handleRequestWithdraw = async () => {
     const amountToWithdraw = parseFloat(withdrawAmount);
     const userBalance = parseFloat(userData?.balance || 0);
 
     if (!withdrawAddress || withdrawAddress.length < 10) {
       safeHaptic('error');
-      return toast.error('Ingresa una dirección de billetera válida');
+      return toast.error(t.msgInvalidWallet);
     }
 
     if (!withdrawAmount || amountToWithdraw <= 0) {
       safeHaptic('error');
-      return toast.error('Ingresa un monto válido');
+      return toast.error(t.msgInvalidAmount);
     }
 
-    // ⚠️ Si quieres probar los retiros aunque el usuario tenga saldo en 0, 
-    // ponle "//" al inicio de las siguientes 4 líneas para desactivar este bloqueo.
     if (amountToWithdraw > userBalance) {
       safeHaptic('error');
-      return toast.error('Fondos insuficientes', { style: { background: '#111C2E', color: '#F87171' }});
+      return toast.error(t.msgNoFunds, { style: { background: '#111C2E', color: '#F87171' }});
     }
 
     safeHaptic('heavy');
     setIsWithdrawing(true);
-    const toastId = toast.loading('Procesando pago en la blockchain...');
+    const toastId = toast.loading(t.msgProcessing);
 
     try {
-      // Llama a tu servidor Vercel para que ejecute el pago con tu Hot Wallet
       const res = await botApi.processAutoWithdraw(userData?.id, withdrawNetwork, withdrawAddress, amountToWithdraw);
 
       if (res && res.success) {
-        toast.success('¡Retiro enviado con éxito!', { id: toastId });
+        toast.success(t.msgSuccess, { id: toastId });
         setWithdrawAmount('');
         setWithdrawAddress('');
-        if (onUpdate) onUpdate(); // Actualiza la interfaz
+        if (onUpdate) onUpdate(); 
       } else {
-        toast.error(`Error: ${res.error || 'No se pudo procesar el pago'}`, { id: toastId });
+        toast.error(`${t.msgError}: ${res.error || ''}`, { id: toastId });
       }
       
     } catch (error) {
-      toast.error('Error al enviar solicitud', { id: toastId });
+      toast.error(t.msgError, { id: toastId });
     } finally {
       setIsWithdrawing(false);
     }
@@ -145,11 +236,11 @@ export default function PortfolioView({ userData, activePlans, onUpdate }) {
 
   return (
     <div className="fade-in">
-      <h2 style={{ ...s.h1, marginBottom: '16px' }}>Portafolio</h2>
+      <h2 style={{ ...s.h1, marginBottom: '16px' }}>{t.portfolio}</h2>
 
       <div style={{ ...s.card, background: 'linear-gradient(135deg, #111C2E 0%, #0B1220 100%)', border: '1px solid #2DD4BF', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <p style={{ ...s.textMuted, color: '#2DD4BF', fontWeight: 'bold', margin: '0 0 8px 0', fontSize: '11px' }}>BALANCE DISPONIBLE</p>
+          <p style={{ ...s.textMuted, color: '#2DD4BF', fontWeight: 'bold', margin: '0 0 8px 0', fontSize: '11px' }}>{t.balance}</p>
           <h2 style={{ fontSize: '28px', margin: 0, color: '#F1F5F9' }}>
             ${Number(userData?.balance || 0).toFixed(4)} <span style={{ fontSize: '14px', color: '#94A3B8' }}>USDT</span>
           </h2>
@@ -158,20 +249,20 @@ export default function PortfolioView({ userData, activePlans, onUpdate }) {
 
       <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', backgroundColor: '#111C2E', padding: '6px', borderRadius: '14px' }}>
         <button onClick={() => setActiveSection('plans')} style={{ flex: 1, padding: '10px', borderRadius: '10px', border: 'none', fontWeight: 'bold', transition: '0.2s', backgroundColor: activeSection === 'plans' ? '#243247' : 'transparent', color: activeSection === 'plans' ? '#F1F5F9' : '#94A3B8' }}>
-          Activos
+          {t.assets}
         </button>
         <button onClick={() => setActiveSection('deposit')} style={{ flex: 1, padding: '10px', borderRadius: '10px', border: 'none', fontWeight: 'bold', transition: '0.2s', backgroundColor: activeSection === 'deposit' ? '#2DD4BF' : 'transparent', color: activeSection === 'deposit' ? '#0B1220' : '#94A3B8' }}>
-          Invertir
+          {t.invest}
         </button>
         <button onClick={() => setActiveSection('withdraw')} style={{ flex: 1, padding: '10px', borderRadius: '10px', border: 'none', fontWeight: 'bold', transition: '0.2s', backgroundColor: activeSection === 'withdraw' ? '#243247' : 'transparent', color: activeSection === 'withdraw' ? '#F1F5F9' : '#94A3B8' }}>
-          Retirar
+          {t.withdraw}
         </button>
       </div>
 
       {activeSection === 'plans' && (
         <div className="fade-in">
           {activePlans.length === 0 ? (
-             <div style={{ textAlign: 'center', padding: '30px 0' }}><p style={s.textMuted}>No tienes fondos trabajando en el pool.</p></div>
+             <div style={{ textAlign: 'center', padding: '30px 0' }}><p style={s.textMuted}>{t.noFunds}</p></div>
           ) : (
             activePlans.map((plan) => {
               const pendingYield = (plan.daily_return_usdt * 1.5).toFixed(2);
@@ -183,15 +274,15 @@ export default function PortfolioView({ userData, activePlans, onUpdate }) {
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
                     <div>
-                      <p style={{ fontSize: '11px', color: '#94A3B8', margin: '0 0 4px 0' }}>CAPITAL</p>
+                      <p style={{ fontSize: '11px', color: '#94A3B8', margin: '0 0 4px 0' }}>{t.capital}</p>
                       <p style={{ margin: 0, fontWeight: 'bold', color: '#F1F5F9', fontSize: '18px' }}>${plan.capital_usdt}</p>
                     </div>
                     <div style={{ textAlign: 'right' }}>
-                      <p style={{ fontSize: '11px', color: '#94A3B8', margin: '0 0 4px 0' }}>POR RECLAMAR</p>
+                      <p style={{ fontSize: '11px', color: '#94A3B8', margin: '0 0 4px 0' }}>{t.toClaim}</p>
                       <p style={{ margin: 0, fontWeight: 'bold', color: '#22C55E', fontSize: '18px' }}>${pendingYield}</p>
                     </div>
                   </div>
-                  <button onClick={() => handleClaim(plan.id, pendingYield)} style={s.btnMain}>RECLAMAR</button>
+                  <button onClick={() => handleClaim(plan.id, pendingYield)} style={s.btnMain}>{t.claimBtn}</button>
                 </div>
               );
             })
@@ -203,11 +294,11 @@ export default function PortfolioView({ userData, activePlans, onUpdate }) {
       {activeSection === 'deposit' && !showWalletStep && (
         <div className="fade-in" style={s.card}>
           <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-            <h3 style={s.h3}>Calculadora de Inversión</h3>
-            <p style={s.textMuted}>Gana un 5% de rendimiento diario automático.</p>
+            <h3 style={s.h3}>{t.calcTitle}</h3>
+            <p style={s.textMuted}>{t.calcDesc}</p>
           </div>
 
-          <label style={{ fontSize: '12px', color: '#94A3B8', fontWeight: 'bold' }}>RED DE PAGO</label>
+          <label style={{ fontSize: '12px', color: '#94A3B8', fontWeight: 'bold' }}>{t.network}</label>
           <div style={{ position: 'relative', marginBottom: '20px', marginTop: '6px' }}>
             <div 
               onClick={() => setShowNetworkDrop(!showNetworkDrop)}
@@ -229,7 +320,7 @@ export default function PortfolioView({ userData, activePlans, onUpdate }) {
             )}
           </div>
 
-          <label style={{ fontSize: '12px', color: '#94A3B8', fontWeight: 'bold' }}>MONTO A INVERTIR (USDT)</label>
+          <label style={{ fontSize: '12px', color: '#94A3B8', fontWeight: 'bold' }}>{t.amountInvest}</label>
           <div style={{ position: 'relative', marginTop: '6px', marginBottom: '24px' }}>
             <span style={{ position: 'absolute', left: '16px', top: '14px', color: '#94A3B8', fontWeight: 'bold' }}>$</span>
             <input 
@@ -243,21 +334,21 @@ export default function PortfolioView({ userData, activePlans, onUpdate }) {
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '24px' }}>
             <div style={{ backgroundColor: '#111C2E', borderRadius: '10px', padding: '12px', textAlign: 'center', border: '1px solid #243247' }}>
-              <p style={{ fontSize: '10px', color: '#94A3B8', margin: '0 0 4px 0', fontWeight: 'bold' }}>24 HORAS</p>
+              <p style={{ fontSize: '10px', color: '#94A3B8', margin: '0 0 4px 0', fontWeight: 'bold' }}>{t.h24}</p>
               <p style={{ margin: 0, color: '#22C55E', fontWeight: 'bold', fontSize: '14px' }}>+${yieldDaily}</p>
             </div>
             <div style={{ backgroundColor: '#111C2E', borderRadius: '10px', padding: '12px', textAlign: 'center', border: '1px solid #243247' }}>
-              <p style={{ fontSize: '10px', color: '#94A3B8', margin: '0 0 4px 0', fontWeight: 'bold' }}>7 DÍAS</p>
+              <p style={{ fontSize: '10px', color: '#94A3B8', margin: '0 0 4px 0', fontWeight: 'bold' }}>{t.d7}</p>
               <p style={{ margin: 0, color: '#22C55E', fontWeight: 'bold', fontSize: '14px' }}>+${yieldWeekly}</p>
             </div>
             <div style={{ backgroundColor: '#111C2E', borderRadius: '10px', padding: '12px', textAlign: 'center', border: '1px solid rgba(45, 212, 191, 0.4)' }}>
-              <p style={{ fontSize: '10px', color: '#2DD4BF', margin: '0 0 4px 0', fontWeight: 'bold' }}>30 DÍAS</p>
+              <p style={{ fontSize: '10px', color: '#2DD4BF', margin: '0 0 4px 0', fontWeight: 'bold' }}>{t.d30}</p>
               <p style={{ margin: 0, color: '#22C55E', fontWeight: 'bold', fontSize: '14px' }}>+${yieldMonthly}</p>
             </div>
           </div>
 
           <button onClick={handleGenerateInvestment} style={{ ...s.btnMain, boxShadow: '0 0 15px rgba(45, 212, 191, 0.3)' }}>
-            GENERAR ORDEN DE INVERSIÓN
+            {t.generateOrder}
           </button>
         </div>
       )}
@@ -268,21 +359,23 @@ export default function PortfolioView({ userData, activePlans, onUpdate }) {
             <button onClick={handleCancelInvestment} style={{ background: 'none', border: 'none', color: '#94A3B8', cursor: 'pointer', padding: '0', display: 'flex', alignItems: 'center' }}>
               <IconBack />
             </button>
-            <h3 style={{ ...s.h3, margin: '0 auto', paddingRight: '20px' }}>Realizar Pago</h3>
+            <h3 style={{ ...s.h3, margin: '0 auto', paddingRight: '20px' }}>{t.makePayment}</h3>
           </div>
 
           <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-            <p style={{ color: '#94A3B8', fontSize: '13px', margin: '0 0 4px 0' }}>Enviando inversión de:</p>
+            <p style={{ color: '#94A3B8', fontSize: '13px', margin: '0 0 4px 0' }}>{t.sending}</p>
             <h2 style={{ margin: 0, color: '#F1F5F9', fontSize: '32px' }}>${amountNum.toFixed(2)} <span style={{fontSize: '16px', color: '#2DD4BF'}}>USDT</span></h2>
           </div>
 
           <div style={{ backgroundColor: '#0B1220', border: '1px dashed #2DD4BF', borderRadius: '16px', padding: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '20px' }}>
             <div style={{ padding: '16px', backgroundColor: '#F1F5F9', borderRadius: '12px', marginBottom: '16px' }}><IconQR /></div>
-            <p style={{ margin: '0 0 8px 0', fontSize: '11px', color: '#94A3B8', letterSpacing: '1px' }}>ENVÍA SOLO USDT ({depositNetwork}) A ESTA DIRECCIÓN</p>
+            <p style={{ margin: '0 0 8px 0', fontSize: '11px', color: '#94A3B8', letterSpacing: '1px', textAlign: 'center' }}>
+              {t.sendOnly} ({depositNetwork}) {t.toAddress}
+            </p>
 
             <div style={{ display: 'flex', alignItems: 'center', backgroundColor: '#111C2E', border: '1px solid #2DD4BF', borderRadius: '8px', padding: '12px', width: '100%', boxSizing: 'border-box' }}>
               <div style={{ flex: 1, fontSize: '13px', color: isGenerating ? '#94A3B8' : '#F1F5F9', fontFamily: 'monospace', wordBreak: 'break-all', paddingRight: '10px', lineHeight: '1.4' }}>
-                {isGenerating ? 'Generando canal de pago seguro...' : depositWallet}
+                {isGenerating ? t.generating : depositWallet}
               </div>
               <button 
                 onClick={() => handleCopy(depositWallet)} 
@@ -294,21 +387,21 @@ export default function PortfolioView({ userData, activePlans, onUpdate }) {
             </div>
           </div>
 
-          <button onClick={() => { safeHaptic('heavy'); toast.success('Buscando pago en la red...'); }} disabled={isGenerating} style={{ ...s.btnMain, opacity: isGenerating ? 0.5 : 1 }}>
-            YA REALICÉ EL DEPÓSITO
+          <button onClick={() => { safeHaptic('heavy'); toast.success(t.msgProcessing); }} disabled={isGenerating} style={{ ...s.btnMain, opacity: isGenerating ? 0.5 : 1 }}>
+            {t.alreadyPaid}
           </button>
         </div>
       )}
 
-      {/* --- SECCIÓN DE RETIRO MEJORADA --- */}
+      {/* --- SECCIÓN DE RETIRO --- */}
       {activeSection === 'withdraw' && (
         <div className="fade-in" style={s.card}>
           <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-            <h3 style={s.h3}>Solicitar Retiro</h3>
-            <p style={s.textMuted}>Los retiros se envían automáticamente a tu billetera.</p>
+            <h3 style={s.h3}>{t.withdrawTitle}</h3>
+            <p style={s.textMuted}>{t.withdrawDesc}</p>
           </div>
           
-          <label style={{ fontSize: '12px', color: '#94A3B8', fontWeight: 'bold' }}>RED DE RETIRO</label>
+          <label style={{ fontSize: '12px', color: '#94A3B8', fontWeight: 'bold' }}>{t.withdrawNetwork}</label>
           <div style={{ position: 'relative', marginBottom: '20px', marginTop: '6px' }}>
             <div 
               onClick={() => setShowWithdrawNetworkDrop(!showWithdrawNetworkDrop)}
@@ -331,7 +424,7 @@ export default function PortfolioView({ userData, activePlans, onUpdate }) {
           </div>
 
           <form style={{ marginTop: '10px' }}>
-            <label style={{ fontSize: '12px', color: '#94A3B8', fontWeight: 'bold' }}>DIRECCIÓN DE BILLETERA</label>
+            <label style={{ fontSize: '12px', color: '#94A3B8', fontWeight: 'bold' }}>{t.walletAddress}</label>
             <input 
               type="text" 
               style={s.input} 
@@ -341,9 +434,9 @@ export default function PortfolioView({ userData, activePlans, onUpdate }) {
             />
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '16px' }}>
-              <label style={{ fontSize: '12px', color: '#94A3B8', fontWeight: 'bold' }}>MONTO (USDT)</label>
+              <label style={{ fontSize: '12px', color: '#94A3B8', fontWeight: 'bold' }}>{t.amountUsdt}</label>
               <span style={{ fontSize: '11px', color: '#2DD4BF', cursor: 'pointer' }} onClick={() => setWithdrawAmount(userData?.balance || '0')}>
-                MÁX: ${Number(userData?.balance || 0).toFixed(2)}
+                {t.max} ${Number(userData?.balance || 0).toFixed(2)}
               </span>
             </div>
             
@@ -364,7 +457,7 @@ export default function PortfolioView({ userData, activePlans, onUpdate }) {
               disabled={isWithdrawing}
               style={{ ...s.btnMain, opacity: isWithdrawing ? 0.7 : 1 }}
             >
-              {isWithdrawing ? 'PROCESANDO RETIRO...' : 'CONFIRMAR RETIRO'}
+              {isWithdrawing ? t.processing : t.confirmWithdraw}
             </button>
           </form>
         </div>
