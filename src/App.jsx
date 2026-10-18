@@ -9,7 +9,7 @@ import HomeView from './views/HomeView';
 import PortfolioView from './views/PortfolioView';
 import ProfileView from './views/ProfileView';
 import SupportView from './views/SupportView';
-import AdminView from './views/AdminView'; // <-- IMPORTANTE: Vista Admin
+import AdminView from './views/AdminView';
 
 // Íconos nativos
 const IconSupport = () => <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>;
@@ -25,12 +25,11 @@ export default function App() {
     { type: 'YIELD', title: 'Rendimiento Diario', date: 'Ayer, 09:15 AM', amount: '2.50' }
   ]);
 
-  // Identificamos el ID de Telegram
+  // Identificamos el ID de Telegram del usuario que abre la app
   const currentUserId = WebApp.initDataUnsafe?.user?.id || 8968109534;
   
-  // ¡FUERZO a que el botón Admin aparezca siempre para que lo puedas probar!
-  // Luego, cuando quieras ocultarlo de los demás, cambia 'true' por: currentUserId.toString() === "8968109534"
-  const isAdmin = true; 
+  // 🔒 SEGURIDAD ACTIVADA: El panel Admin solo se muestra si el ID es el tuyo (8968109534)
+  const isAdmin = currentUserId.toString() === "8968109534"; 
 
   const verifyUser = useCallback(async (user) => {
     try {
@@ -38,13 +37,12 @@ export default function App() {
       if (data && data.success) {
         setUserData({
           ...data.user,
-          id: currentUserId, // Aseguramos inyectar el ID real
+          id: currentUserId,
           photo_url: WebApp.initDataUnsafe?.user?.photo_url || 'https://via.placeholder.com/100'
         });
         setActivePlans(data.plans || []);
         setStatus('member');
       } else {
-        // Fallback: Si no hay usuario en DB aún, cargamos la app para no bloquearte
         setUserData({ id: currentUserId, balance: 0 });
         setStatus('member');
       }
@@ -75,20 +73,11 @@ export default function App() {
 
       <div style={s.main}>
         {activeTab === 'home' && <HomeView userData={userData} activePlans={activePlans} transactions={transactions} onNavigate={setActiveTab} />}
-
-        {activeTab === 'portfolio' && (
-          <PortfolioView 
-            userData={userData} 
-            activePlans={activePlans} 
-            onUpdate={() => verifyUser(WebApp.initDataUnsafe?.user || { id: 8968109534, username: 'TestUser' })} 
-          />
-        )}
-
+        {activeTab === 'portfolio' && <PortfolioView userData={userData} activePlans={activePlans} onUpdate={() => verifyUser(WebApp.initDataUnsafe?.user || { id: 8968109534, username: 'TestUser' })} />}
         {activeTab === 'support' && <SupportView userData={userData} />}
-
         {activeTab === 'profile' && <ProfileView userData={userData} />}
         
-        {/* VISTA DEL PANEL ADMIN */}
+        {/* VISTA DEL PANEL ADMIN (Protegida) */}
         {activeTab === 'admin' && isAdmin && <AdminView />}
       </div>
 
@@ -106,7 +95,7 @@ export default function App() {
           <IconProfile /> Perfil
         </div>
         
-        {/* BOTÓN SECRETO AL PANEL DE CONTROL */}
+        {/* BOTÓN SECRETO (Protegido) */}
         {isAdmin && (
           <div onClick={() => setActiveTab('admin')} style={activeTab === 'admin' ? { ...s.navItemActive, color: '#F59E0B' } : s.navItem}>
             <IconAdmin /> Admin
