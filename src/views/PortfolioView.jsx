@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { s } from '../styles/appStyles';
 import { botApi } from '../api/botApi';
 import toast from 'react-hot-toast';
@@ -12,30 +12,32 @@ const IconBack = () => <svg width="20" height="20" fill="none" stroke="currentCo
 export default function PortfolioView({ userData, activePlans, onUpdate }) {
   const [activeSection, setActiveSection] = useState('deposit'); 
 
-  // Control de red y monto de inversión
+  // --- ESTADOS DE DEPÓSITO ---
   const [showNetworkDrop, setShowNetworkDrop] = useState(false);
   const [depositNetwork, setDepositNetwork] = useState('BSC');
   const [investmentAmount, setInvestmentAmount] = useState('');
-
-  // Estados del flujo de la billetera
   const [showWalletStep, setShowWalletStep] = useState(false);
   const [depositWallet, setDepositWallet] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
 
+  // --- ESTADOS DE RETIRO ---
+  const [showWithdrawNetworkDrop, setShowWithdrawNetworkDrop] = useState(false);
+  const [withdrawNetwork, setWithdrawNetwork] = useState('BSC');
   const [withdrawAddress, setWithdrawAddress] = useState('');
   const [withdrawAmount, setWithdrawAmount] = useState('');
+  const [isWithdrawing, setIsWithdrawing] = useState(false);
 
   const safeHaptic = (style = 'medium') => {
     try { if (WebApp.HapticFeedback) WebApp.HapticFeedback.impactOccurred(style); } catch (e) {}
   };
 
-  // Cálculos dinámicos de rendimiento (Basado en 5% diario)
+  // Cálculos dinámicos de rendimiento
   const amountNum = parseFloat(investmentAmount) || 0;
   const yieldDaily = (amountNum * 0.05).toFixed(2);
   const yieldWeekly = (amountNum * 0.35).toFixed(2);
   const yieldMonthly = (amountNum * 1.50).toFixed(2);
 
-  // Generación de Wallet bajo demanda (Solo cuando el usuario da clic)
+  // --- FUNCIONES DE DEPÓSITO ---
   const handleGenerateInvestment = async () => {
     if (!investmentAmount || amountNum < 5) {
       safeHaptic('error');
@@ -63,7 +65,6 @@ export default function PortfolioView({ userData, activePlans, onUpdate }) {
     }
   };
 
-  // Volver a la calculadora
   const handleCancelInvestment = () => {
     safeHaptic('light');
     setShowWalletStep(false);
@@ -75,7 +76,7 @@ export default function PortfolioView({ userData, activePlans, onUpdate }) {
     safeHaptic('light');
     if (navigator?.clipboard?.writeText) {
       navigator.clipboard.writeText(text);
-      toast.success('Billetera copiada', { style: { background: '#2DD4BF', color: '#0B1220' }});
+      toast.success('Copiado al portapapeles', { style: { background: '#2DD4BF', color: '#0B1220' }});
     } else {
       const textArea = document.createElement("textarea");
       textArea.value = text;
@@ -83,7 +84,7 @@ export default function PortfolioView({ userData, activePlans, onUpdate }) {
       textArea.select();
       document.execCommand("copy");
       document.body.removeChild(textArea);
-      toast.success('Billetera copiada', { style: { background: '#2DD4BF', color: '#0B1220' }});
+      toast.success('Copiado al portapapeles', { style: { background: '#2DD4BF', color: '#0B1220' }});
     }
   };
 
@@ -96,13 +97,59 @@ export default function PortfolioView({ userData, activePlans, onUpdate }) {
     }, 1500);
   };
 
+  // --- FUNCIONES DE RETIRO (AUTOMÁTICO REAL) ---
+  const handleRequestWithdraw = async () => {
+    const amountToWithdraw = parseFloat(withdrawAmount);
+    const userBalance = parseFloat(userData?.balance || 0);
+
+    if (!withdrawAddress || withdrawAddress.length < 10) {
+      safeHaptic('error');
+      return toast.error('Ingresa una dirección de billetera válida');
+    }
+
+    if (!withdrawAmount || amountToWithdraw <= 0) {
+      safeHaptic('error');
+      return toast.error('Ingresa un monto válido');
+    }
+
+    // ⚠️ Si quieres probar los retiros aunque el usuario tenga saldo en 0, 
+    // ponle "//" al inicio de las siguientes 4 líneas para desactivar este bloqueo.
+    if (amountToWithdraw > userBalance) {
+      safeHaptic('error');
+      return toast.error('Fondos insuficientes', { style: { background: '#111C2E', color: '#F87171' }});
+    }
+
+    safeHaptic('heavy');
+    setIsWithdrawing(true);
+    const toastId = toast.loading('Procesando pago en la blockchain...');
+
+    try {
+      // Llama a tu servidor Vercel para que ejecute el pago con tu Hot Wallet
+      const res = await botApi.processAutoWithdraw(userData?.id, withdrawNetwork, withdrawAddress, amountToWithdraw);
+
+      if (res && res.success) {
+        toast.success('¡Retiro enviado con éxito!', { id: toastId });
+        setWithdrawAmount('');
+        setWithdrawAddress('');
+        if (onUpdate) onUpdate(); // Actualiza la interfaz
+      } else {
+        toast.error(`Error: ${res.error || 'No se pudo procesar el pago'}`, { id: toastId });
+      }
+      
+    } catch (error) {
+      toast.error('Error al enviar solicitud', { id: toastId });
+    } finally {
+      setIsWithdrawing(false);
+    }
+  };
+
   return (
     <div className="fade-in">
       <h2 style={{ ...s.h1, marginBottom: '16px' }}>Portafolio</h2>
 
       <div style={{ ...s.card, background: 'linear-gradient(135deg, #111C2E 0%, #0B1220 100%)', border: '1px solid #2DD4BF', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <p style={{ ...s.textMuted, color: '#2DD4BF', fontWeight: 'bold', margin: '0 0 8px 0', fontSize: '11px' }}>BALANCE PRINCIPAL</p>
+          <p style={{ ...s.textMuted, color: '#2DD4BF', fontWeight: 'bold', margin: '0 0 8px 0', fontSize: '11px' }}>BALANCE DISPONIBLE</p>
           <h2 style={{ fontSize: '28px', margin: 0, color: '#F1F5F9' }}>
             ${Number(userData?.balance || 0).toFixed(4)} <span style={{ fontSize: '14px', color: '#94A3B8' }}>USDT</span>
           </h2>
@@ -152,7 +199,7 @@ export default function PortfolioView({ userData, activePlans, onUpdate }) {
         </div>
       )}
 
-      {/* --- FLUJO DE INVERSIÓN MEJORADO --- */}
+      {/* --- INVERSIÓN (DEPÓSITO) --- */}
       {activeSection === 'deposit' && !showWalletStep && (
         <div className="fade-in" style={s.card}>
           <div style={{ textAlign: 'center', marginBottom: '20px' }}>
@@ -194,7 +241,6 @@ export default function PortfolioView({ userData, activePlans, onUpdate }) {
             />
           </div>
 
-          {/* Proyección de Ganancias */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '24px' }}>
             <div style={{ backgroundColor: '#111C2E', borderRadius: '10px', padding: '12px', textAlign: 'center', border: '1px solid #243247' }}>
               <p style={{ fontSize: '10px', color: '#94A3B8', margin: '0 0 4px 0', fontWeight: 'bold' }}>24 HORAS</p>
@@ -216,7 +262,6 @@ export default function PortfolioView({ userData, activePlans, onUpdate }) {
         </div>
       )}
 
-      {/* --- PASO 2: MOSTRAR BILLETERA GENERADA --- */}
       {activeSection === 'deposit' && showWalletStep && (
         <div className="fade-in" style={s.card}>
           <div style={{ display: 'flex', alignItems: 'center', marginBottom: '20px' }}>
@@ -255,17 +300,72 @@ export default function PortfolioView({ userData, activePlans, onUpdate }) {
         </div>
       )}
 
+      {/* --- SECCIÓN DE RETIRO MEJORADA --- */}
       {activeSection === 'withdraw' && (
         <div className="fade-in" style={s.card}>
-          <h3 style={s.h3}>Solicitar Retiro</h3>
-          <form style={{ marginTop: '20px' }}>
+          <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+            <h3 style={s.h3}>Solicitar Retiro</h3>
+            <p style={s.textMuted}>Los retiros se envían automáticamente a tu billetera.</p>
+          </div>
+          
+          <label style={{ fontSize: '12px', color: '#94A3B8', fontWeight: 'bold' }}>RED DE RETIRO</label>
+          <div style={{ position: 'relative', marginBottom: '20px', marginTop: '6px' }}>
+            <div 
+              onClick={() => setShowWithdrawNetworkDrop(!showWithdrawNetworkDrop)}
+              style={{ backgroundColor: '#0B1220', border: '1px solid #243247', borderRadius: '12px', padding: '14px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', color: '#F1F5F9' }}
+            >
+              <span style={{ fontWeight: 'bold' }}>
+                {withdrawNetwork === 'BSC' ? 'BNB Smart Chain (BEP-20)' : 'The Open Network (TON)'}
+              </span>
+              <div style={{ transform: showWithdrawNetworkDrop ? 'rotate(180deg)' : 'rotate(0deg)', transition: '0.3s', color: '#94A3B8' }}>
+                <IconChevron />
+              </div>
+            </div>
+            
+            {showWithdrawNetworkDrop && (
+              <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, backgroundColor: '#111C2E', border: '1px solid #2DD4BF', borderRadius: '12px', marginTop: '8px', zIndex: 10, overflow: 'hidden', boxShadow: '0 10px 25px rgba(0,0,0,0.5)' }}>
+                <div onClick={() => { setWithdrawNetwork('BSC'); setShowWithdrawNetworkDrop(false); }} style={{ padding: '14px 16px', borderBottom: '1px solid #243247', cursor: 'pointer', color: withdrawNetwork === 'BSC' ? '#2DD4BF' : '#F1F5F9', fontWeight: withdrawNetwork === 'BSC' ? 'bold' : 'normal' }}>BNB Smart Chain (BEP-20)</div>
+                <div onClick={() => { setWithdrawNetwork('TON'); setShowWithdrawNetworkDrop(false); }} style={{ padding: '14px 16px', cursor: 'pointer', color: withdrawNetwork === 'TON' ? '#2DD4BF' : '#F1F5F9', fontWeight: withdrawNetwork === 'TON' ? 'bold' : 'normal' }}>The Open Network (TON)</div>
+              </div>
+            )}
+          </div>
+
+          <form style={{ marginTop: '10px' }}>
             <label style={{ fontSize: '12px', color: '#94A3B8', fontWeight: 'bold' }}>DIRECCIÓN DE BILLETERA</label>
-            <input type="text" style={s.input} placeholder="0x... o EQ..." value={withdrawAddress} onChange={e => setWithdrawAddress(e.target.value)} />
+            <input 
+              type="text" 
+              style={s.input} 
+              placeholder={withdrawNetwork === 'BSC' ? 'Ej: 0x...' : 'Ej: EQ...'} 
+              value={withdrawAddress} 
+              onChange={e => setWithdrawAddress(e.target.value)} 
+            />
 
-            <label style={{ fontSize: '12px', color: '#94A3B8', fontWeight: 'bold', marginTop: '10px' }}>MONTO A RETIRAR (USDT)</label>
-            <input type="number" style={s.input} value={withdrawAmount} onChange={e => setWithdrawAmount(e.target.value)} placeholder="Monto" />
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '16px' }}>
+              <label style={{ fontSize: '12px', color: '#94A3B8', fontWeight: 'bold' }}>MONTO (USDT)</label>
+              <span style={{ fontSize: '11px', color: '#2DD4BF', cursor: 'pointer' }} onClick={() => setWithdrawAmount(userData?.balance || '0')}>
+                MÁX: ${Number(userData?.balance || 0).toFixed(2)}
+              </span>
+            </div>
+            
+            <div style={{ position: 'relative', marginTop: '6px', marginBottom: '24px' }}>
+              <span style={{ position: 'absolute', left: '16px', top: '14px', color: '#94A3B8', fontWeight: 'bold' }}>$</span>
+              <input 
+                type="number" 
+                style={{ ...s.input, paddingLeft: '32px' }} 
+                value={withdrawAmount} 
+                onChange={e => setWithdrawAmount(e.target.value)} 
+                placeholder="0.00" 
+              />
+            </div>
 
-            <button type="button" style={{ ...s.btnMain, backgroundColor: '#243247', color: '#F1F5F9' }}>CONFIRMAR RETIRO</button>
+            <button 
+              type="button" 
+              onClick={handleRequestWithdraw}
+              disabled={isWithdrawing}
+              style={{ ...s.btnMain, opacity: isWithdrawing ? 0.7 : 1 }}
+            >
+              {isWithdrawing ? 'PROCESANDO RETIRO...' : 'CONFIRMAR RETIRO'}
+            </button>
           </form>
         </div>
       )}
