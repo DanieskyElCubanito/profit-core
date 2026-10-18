@@ -1,135 +1,150 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { s } from '../styles/appStyles';
 import { botApi } from '../api/botApi';
-import toast from 'react-hot-toast';
 import WebApp from '@twa-dev/sdk';
+import toast from 'react-hot-toast';
 
-// Idiomas automáticos
-const translations = {
-  es: {
-    title: "Soporte Técnico",
-    desc: "¿Tienes algún problema? Envíanos un ticket y te ayudaremos lo antes posible.",
-    category: "CATEGORÍA DEL PROBLEMA",
-    catDeposit: "Problema con Depósito",
-    catWithdraw: "Problema con Retiro",
-    catBug: "Error en la Aplicación",
-    catOther: "Otra consulta",
-    message: "TU MENSAJE",
-    placeholder: "Describe tu problema o duda en detalle...",
-    sendBtn: "ENVIAR TICKET",
-    sending: "Enviando...",
-    msgSuccess: "Ticket enviado con éxito. Te contactaremos pronto.",
-    msgError: "Error al enviar el ticket",
-    msgEmpty: "Por favor, escribe un mensaje explicando tu problema."
-  },
-  en: {
-    title: "Technical Support",
-    desc: "Having an issue? Send us a ticket and we will help you as soon as possible.",
-    category: "ISSUE CATEGORY",
-    catDeposit: "Deposit Issue",
-    catWithdraw: "Withdrawal Issue",
-    catBug: "App Bug",
-    catOther: "Other inquiry",
-    message: "YOUR MESSAGE",
-    placeholder: "Describe your issue or question in detail...",
-    sendBtn: "SEND TICKET",
-    sending: "Sending...",
-    msgSuccess: "Ticket sent successfully. We will contact you soon.",
-    msgError: "Error sending ticket",
-    msgEmpty: "Please write a message explaining your issue."
-  }
-};
-
-const IconChevron = () => <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>;
+// Ícono de enviar
+const IconSend = () => <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>;
+const IconSupportAvatar = () => <svg width="24" height="24" fill="none" stroke="#0B1220" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>;
 
 export default function SupportView({ userData }) {
   const userLang = WebApp.initDataUnsafe?.user?.language_code === 'en' ? 'en' : 'es';
-  const t = translations[userLang];
+  const isEs = userLang === 'es';
 
-  const [category, setCategory] = useState('Deposit');
-  const [showDrop, setShowDrop] = useState(false);
-  const [message, setMessage] = useState('');
+  // Historial de mensajes (Cargamos de la memoria del teléfono si existen)
+  const [messages, setMessages] = useState(() => {
+    const saved = localStorage.getItem(`chat_${userData?.id}`);
+    if (saved) return JSON.parse(saved);
+    // Mensaje de bienvenida por defecto
+    return [
+      { id: 1, sender: 'bot', text: isEs ? '¡Hola! 👋 ¿En qué podemos ayudarte hoy?' : 'Hello! 👋 How can we help you today?', time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) }
+    ];
+  });
+
+  const [inputValue, setInputValue] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const messagesEndRef = useRef(null);
 
-  const getCategoryName = (cat) => {
-    if(cat === 'Deposit') return t.catDeposit;
-    if(cat === 'Withdraw') return t.catWithdraw;
-    if(cat === 'Bug') return t.catBug;
-    return t.catOther;
+  // Auto-scroll hacia abajo cuando hay un nuevo mensaje
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  const handleSend = async () => {
-    if (!message.trim()) {
-      try { if (WebApp.HapticFeedback) WebApp.HapticFeedback.impactOccurred('error'); } catch(e){}
-      return toast.error(t.msgEmpty);
-    }
+  useEffect(() => {
+    scrollToBottom();
+    // Guardar historial en el teléfono
+    localStorage.setItem(`chat_${userData?.id}`, JSON.stringify(messages));
+  }, [messages, userData?.id]);
 
-    try { if (WebApp.HapticFeedback) WebApp.HapticFeedback.impactOccurred('heavy'); } catch(e){}
+  const safeHaptic = (style = 'light') => {
+    try { if (WebApp.HapticFeedback) WebApp.HapticFeedback.impactOccurred(style); } catch (e) {}
+  };
+
+  const handleSendMessage = async () => {
+    if (!inputValue.trim() || isSending) return;
+    
+    safeHaptic('medium');
+    const userMsg = inputValue.trim();
+    setInputValue(''); // Limpiamos el input rápido para mejor experiencia
+    
+    const newMessage = {
+      id: Date.now(),
+      sender: 'user',
+      text: userMsg,
+      time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+    };
+
+    setMessages(prev => [...prev, newMessage]);
     setIsSending(true);
-    const toastId = toast.loading(t.sending);
 
     try {
-      const username = WebApp.initDataUnsafe?.user?.username || '';
-      const res = await botApi.sendSupportTicket(userData?.id, username, getCategoryName(category), message);
+      const username = WebApp.initDataUnsafe?.user?.username || 'Usuario';
+      
+      // Enviamos el ticket a tu Telegram por detrás
+      await botApi.sendSupportTicket(userData?.id, username, 'Chat en Vivo', userMsg);
+      
+      // Simulamos que el bot está "escribiendo" y responde automáticamente
+      setTimeout(() => {
+        setMessages(prev => [...prev, {
+          id: Date.now() + 1,
+          sender: 'bot',
+          text: isEs ? 'Hemos recibido tu mensaje. Un agente te responderá por aquí pronto. ⏳' : 'Message received. An agent will reply here soon. ⏳',
+          time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+        }]);
+        safeHaptic('heavy');
+      }, 1500);
 
-      if (res && res.success) {
-        toast.success(t.msgSuccess, { id: toastId });
-        setMessage(''); // Limpiar caja
-      } else {
-        toast.error(t.msgError, { id: toastId });
-      }
     } catch (error) {
-      toast.error(t.msgError, { id: toastId });
+      toast.error(isEs ? "Error de conexión" : "Connection error");
     } finally {
       setIsSending(false);
     }
   };
 
   return (
-    <div className="fade-in">
-      <h2 style={{ ...s.h1, marginBottom: '8px' }}>{t.title}</h2>
-      <p style={{ ...s.textMuted, marginBottom: '24px' }}>{t.desc}</p>
-
-      <div style={s.card}>
-        <label style={{ fontSize: '12px', color: '#94A3B8', fontWeight: 'bold' }}>{t.category}</label>
-        
-        <div style={{ position: 'relative', marginBottom: '20px', marginTop: '6px' }}>
-          <div 
-            onClick={() => setShowDrop(!showDrop)}
-            style={{ backgroundColor: '#0B1220', border: '1px solid #243247', borderRadius: '12px', padding: '14px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', color: '#F1F5F9' }}
-          >
-            <span style={{ fontWeight: 'bold' }}>{getCategoryName(category)}</span>
-            <div style={{ transform: showDrop ? 'rotate(180deg)' : 'rotate(0deg)', transition: '0.3s', color: '#94A3B8' }}>
-              <IconChevron />
-            </div>
-          </div>
-          
-          {showDrop && (
-            <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, backgroundColor: '#111C2E', border: '1px solid #2DD4BF', borderRadius: '12px', marginTop: '8px', zIndex: 10, overflow: 'hidden', boxShadow: '0 10px 25px rgba(0,0,0,0.5)' }}>
-              <div onClick={() => { setCategory('Deposit'); setShowDrop(false); }} style={{ padding: '14px 16px', borderBottom: '1px solid #243247', cursor: 'pointer', color: '#F1F5F9' }}>{t.catDeposit}</div>
-              <div onClick={() => { setCategory('Withdraw'); setShowDrop(false); }} style={{ padding: '14px 16px', borderBottom: '1px solid #243247', cursor: 'pointer', color: '#F1F5F9' }}>{t.catWithdraw}</div>
-              <div onClick={() => { setCategory('Bug'); setShowDrop(false); }} style={{ padding: '14px 16px', borderBottom: '1px solid #243247', cursor: 'pointer', color: '#F1F5F9' }}>{t.catBug}</div>
-              <div onClick={() => { setCategory('Other'); setShowDrop(false); }} style={{ padding: '14px 16px', cursor: 'pointer', color: '#F1F5F9' }}>{t.catOther}</div>
-            </div>
-          )}
+    <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 140px)' }}>
+      
+      {/* CABECERA DEL CHAT */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '16px', backgroundColor: '#111C2E', borderRadius: '16px 16px 0 0', borderBottom: '1px solid #243247' }}>
+        <div style={{ width: '40px', height: '40px', backgroundColor: '#2DD4BF', borderRadius: '50%', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+          <IconSupportAvatar />
         </div>
+        <div>
+          <h3 style={{ margin: 0, color: '#F1F5F9', fontSize: '16px' }}>{isEs ? 'Soporte Técnico' : 'Support Team'}</h3>
+          <p style={{ margin: 0, color: '#22C55E', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <span style={{ width: '8px', height: '8px', backgroundColor: '#22C55E', borderRadius: '50%', display: 'inline-block' }}></span>
+            {isEs ? 'En línea' : 'Online'}
+          </p>
+        </div>
+      </div>
 
-        <label style={{ fontSize: '12px', color: '#94A3B8', fontWeight: 'bold' }}>{t.message}</label>
-        <textarea 
-          style={{ ...s.input, minHeight: '120px', resize: 'none', marginTop: '6px', marginBottom: '24px', paddingTop: '12px' }} 
-          placeholder={t.placeholder}
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
+      {/* ÁREA DE MENSAJES */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '16px', backgroundColor: '#0B1220', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        {messages.map((msg) => (
+          <div key={msg.id} style={{ display: 'flex', flexDirection: 'column', alignItems: msg.sender === 'user' ? 'flex-end' : 'flex-start' }}>
+            <div style={{ 
+              maxWidth: '80%', 
+              padding: '12px 16px', 
+              borderRadius: msg.sender === 'user' ? '16px 16px 0 16px' : '16px 16px 16px 0',
+              backgroundColor: msg.sender === 'user' ? '#2DD4BF' : '#1E293B',
+              color: msg.sender === 'user' ? '#0B1220' : '#F1F5F9',
+              fontSize: '14px',
+              lineHeight: '1.4',
+              boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+            }}>
+              {msg.text}
+            </div>
+            <span style={{ fontSize: '10px', color: '#94A3B8', marginTop: '4px' }}>{msg.time}</span>
+          </div>
+        ))}
+        {isSending && (
+          <div style={{ alignSelf: 'flex-end', fontSize: '12px', color: '#2DD4BF', fontStyle: 'italic', marginTop: '-8px' }}>
+            {isEs ? 'Enviando...' : 'Sending...'}
+          </div>
+        )}
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* ZONA DE ESCRITURA (INPUT) */}
+      <div style={{ padding: '12px 16px', backgroundColor: '#111C2E', borderRadius: '0 0 16px 16px', borderTop: '1px solid #243247', display: 'flex', gap: '8px', alignItems: 'center' }}>
+        <input 
+          type="text" 
+          placeholder={isEs ? "Escribe un mensaje..." : "Type a message..."}
+          value={inputValue}
+          onChange={(e) => setInputValue(e.target.value)}
+          onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+          style={{ flex: 1, backgroundColor: '#0B1220', border: '1px solid #243247', borderRadius: '24px', padding: '12px 16px', color: '#F1F5F9', fontSize: '14px', outline: 'none' }}
         />
-
         <button 
-          onClick={handleSend}
-          disabled={isSending}
-          style={{ ...s.btnMain, opacity: isSending ? 0.7 : 1, boxShadow: '0 0 15px rgba(45, 212, 191, 0.3)' }}
+          onClick={handleSendMessage}
+          disabled={!inputValue.trim() || isSending}
+          style={{ width: '44px', height: '44px', borderRadius: '50%', backgroundColor: inputValue.trim() ? '#2DD4BF' : '#243247', color: '#0B1220', border: 'none', display: 'flex', justifyContent: 'center', alignItems: 'center', cursor: inputValue.trim() ? 'pointer' : 'not-allowed', transition: '0.2s' }}
         >
-          {isSending ? t.sending : t.sendBtn}
+          <IconSend />
         </button>
       </div>
+
     </div>
   );
 }
