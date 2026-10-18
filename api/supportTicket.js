@@ -1,5 +1,5 @@
 // --- CONFIGURACIÓN DE TU BOT ---
-const BOT_TOKEN = "AQUI_PON_EL_TOKEN_DE_TU_BOT"; 
+const BOT_TOKEN = "8717597733:AAFD50K9ZWFSHim6OwYAOTVI2lSA0hs11Ig"; 
 const ADMIN_ID = "8968109534"; 
 
 export default async function handler(req, res) {
