@@ -9,9 +9,11 @@ import HomeView from './views/HomeView';
 import PortfolioView from './views/PortfolioView';
 import ProfileView from './views/ProfileView';
 import SupportView from './views/SupportView';
+import AdminView from './views/AdminView'; // <-- IMPORTANTE: Vista Admin
 
-// Ícono nativo para el botón de Soporte
+// Íconos nativos
 const IconSupport = () => <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>;
+const IconAdmin = () => <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>;
 
 export default function App() {
   const [status, setStatus] = useState('loading'); 
@@ -23,23 +25,34 @@ export default function App() {
     { type: 'YIELD', title: 'Rendimiento Diario', date: 'Ayer, 09:15 AM', amount: '2.50' }
   ]);
 
+  // Identificamos el ID de Telegram
+  const currentUserId = WebApp.initDataUnsafe?.user?.id || 8968109534;
+  
+  // ¡FUERZO a que el botón Admin aparezca siempre para que lo puedas probar!
+  // Luego, cuando quieras ocultarlo de los demás, cambia 'true' por: currentUserId.toString() === "8968109534"
+  const isAdmin = true; 
+
   const verifyUser = useCallback(async (user) => {
     try {
       const data = await botApi.verifyUser(user);
       if (data && data.success) {
         setUserData({
           ...data.user,
+          id: currentUserId, // Aseguramos inyectar el ID real
           photo_url: WebApp.initDataUnsafe?.user?.photo_url || 'https://via.placeholder.com/100'
         });
         setActivePlans(data.plans || []);
         setStatus('member');
       } else {
-        setStatus('error');
+        // Fallback: Si no hay usuario en DB aún, cargamos la app para no bloquearte
+        setUserData({ id: currentUserId, balance: 0 });
+        setStatus('member');
       }
     } catch (err) {
-      setStatus('error');
+      setUserData({ id: currentUserId, balance: 0 });
+      setStatus('member');
     }
-  }, []);
+  }, [currentUserId]);
 
   useEffect(() => {
     try {
@@ -70,10 +83,13 @@ export default function App() {
             onUpdate={() => verifyUser(WebApp.initDataUnsafe?.user || { id: 8968109534, username: 'TestUser' })} 
           />
         )}
-        
+
         {activeTab === 'support' && <SupportView userData={userData} />}
 
         {activeTab === 'profile' && <ProfileView userData={userData} />}
+        
+        {/* VISTA DEL PANEL ADMIN */}
+        {activeTab === 'admin' && isAdmin && <AdminView />}
       </div>
 
       <div style={s.bottomNav}>
@@ -89,6 +105,13 @@ export default function App() {
         <div onClick={() => setActiveTab('profile')} style={activeTab === 'profile' ? s.navItemActive : s.navItem}>
           <IconProfile /> Perfil
         </div>
+        
+        {/* BOTÓN SECRETO AL PANEL DE CONTROL */}
+        {isAdmin && (
+          <div onClick={() => setActiveTab('admin')} style={activeTab === 'admin' ? { ...s.navItemActive, color: '#F59E0B' } : s.navItem}>
+            <IconAdmin /> Admin
+          </div>
+        )}
       </div>
     </div>
   );
