@@ -1,6 +1,6 @@
 export const botApi = {
   
-  // 1. Función para pedirle al backend de Vercel que genere la billetera de depósito
+  // 1. Generar Billetera de Depósito
   generateDepositWallet: async (userId, network) => {
     try {
       const response = await fetch('/api/generateWallet', {
@@ -8,15 +8,14 @@ export const botApi = {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId, network })
       });
-      const data = await response.json();
-      return data;
+      return await response.json();
     } catch (error) {
       console.error("Error contactando al servidor:", error);
       return { success: false };
     }
   },
 
-  // 2. Función para ejecutar un retiro automático real en la blockchain
+  // 2. Ejecutar Retiro Automático
   processAutoWithdraw: async (userId, network, address, amount) => {
     try {
       const response = await fetch('/api/autoWithdraw', {
@@ -24,15 +23,14 @@ export const botApi = {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId, network, address, amount })
       });
-      const data = await response.json();
-      return data;
+      return await response.json();
     } catch (error) {
       console.error("Error contactando al servidor:", error);
-      return { success: false, error: 'Error de conexión con el servidor' };
+      return { success: false, error: 'Error de conexión' };
     }
   },
 
-  // 3. Función para enviar un ticket de soporte al Admin por Telegram
+  // 3. Enviar ticket de soporte al Admin por Telegram
   sendSupportTicket: async (userId, username, category, message) => {
     try {
       const response = await fetch('/api/supportTicket', {
@@ -43,6 +41,21 @@ export const botApi = {
       return await response.json();
     } catch (error) {
       console.error("Error enviando ticket:", error);
+      return { success: false };
+    }
+  },
+
+  // 4. NUEVA FUNCIÓN: Responder al usuario desde el panel Admin
+  replyToUser: async (userId, message) => {
+    try {
+      const response = await fetch('/api/adminReply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, message })
+      });
+      return await response.json();
+    } catch (error) {
+      console.error("Error enviando respuesta:", error);
       return { success: false };
     }
   }
