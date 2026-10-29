@@ -9,11 +9,9 @@ import HomeView from './views/HomeView';
 import PortfolioView from './views/PortfolioView';
 import ProfileView from './views/ProfileView';
 import SupportView from './views/SupportView';
-import AdminView from './views/AdminView';
 
-// Íconos nativos
+// Ícono nativo
 const IconSupport = () => <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>;
-const IconAdmin = () => <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>;
 
 export default function App() {
   const [status, setStatus] = useState('loading'); 
@@ -27,9 +25,6 @@ export default function App() {
 
   // Identificamos el ID de Telegram del usuario que abre la app
   const currentUserId = WebApp.initDataUnsafe?.user?.id || 8968109534;
-  
-  // 🔒 SEGURIDAD ACTIVADA: El panel Admin solo se muestra si el ID es el tuyo (8968109534)
-  const isAdmin = currentUserId.toString() === "8968109534"; 
 
   const verifyUser = useCallback(async (user) => {
     try {
@@ -76,9 +71,6 @@ export default function App() {
         {activeTab === 'portfolio' && <PortfolioView userData={userData} activePlans={activePlans} onUpdate={() => verifyUser(WebApp.initDataUnsafe?.user || { id: 8968109534, username: 'TestUser' })} />}
         {activeTab === 'support' && <SupportView userData={userData} />}
         {activeTab === 'profile' && <ProfileView userData={userData} />}
-        
-        {/* VISTA DEL PANEL ADMIN (Protegida) */}
-        {activeTab === 'admin' && isAdmin && <AdminView />}
       </div>
 
       <div style={s.bottomNav}>
@@ -94,13 +86,6 @@ export default function App() {
         <div onClick={() => setActiveTab('profile')} style={activeTab === 'profile' ? s.navItemActive : s.navItem}>
           <IconProfile /> Perfil
         </div>
-        
-        {/* BOTÓN SECRETO (Protegido) */}
-        {isAdmin && (
-          <div onClick={() => setActiveTab('admin')} style={activeTab === 'admin' ? { ...s.navItemActive, color: '#F59E0B' } : s.navItem}>
-            <IconAdmin /> Admin
-          </div>
-        )}
       </div>
     </div>
   );
