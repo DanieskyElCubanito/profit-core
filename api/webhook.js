@@ -1,5 +1,6 @@
-const BOT_TOKEN = process.env.BOT_TOKEN;
-const ADMIN_ID = process.env.ADMIN_ID; 
+const BOT_TOKEN = process.env.BOT_TOKEN; // Este SÍ o SÍ debe ir en Vercel
+const ADMIN_ID = "8968109534"; // Escrito directo en el código
+ 
 
 export default async function handler(req, res) {
   res.status(200).send('OK');
