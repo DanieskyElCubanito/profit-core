@@ -1,4 +1,4 @@
-const BOT_TOKEN = process.env.BOT_TOKEN; // Este SÍ o SÍ debe ir en Vercel
+const BOT_TOKEN = "8761317222:AAGqOZziDYtZV8Lzo0vHf9ClcT0-mQXeiMA"; // Este SÍ o SÍ debe ir en Vercel
 const ADMIN_ID = "8968109534"; // Escrito directo en el código
  
 
